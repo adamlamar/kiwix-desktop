@@ -38,7 +38,6 @@
 **
 ****************************************************************************/
 
-
 #include "qtlocalpeer.h"
 #include <QCoreApplication>
 #include <QDataStream>
@@ -76,7 +75,7 @@ QtLocalPeer::QtLocalPeer(QObject* parent, const QString &appId)
 #if defined(Q_OS_WIN)
         id = id.toLower();
 #endif
-        prefix = id.section(QLatin1Char('/'), -1);
+        prefix = id.section(u'/', -1);
     }
     prefix.remove(QRegExp("[^a-zA-Z]"));
     prefix.truncate(6);
@@ -84,7 +83,7 @@ QtLocalPeer::QtLocalPeer(QObject* parent, const QString &appId)
     QByteArray idc = id.toUtf8();
     quint16 idNum = qChecksum(idc.constData(), idc.size());
     socketName = QLatin1String("qtsingleapp-") + prefix
-                 + QLatin1Char('-') + QString::number(idNum, 16);
+                 + u'-' + QString::number(idNum, 16);
 
 #if defined(Q_OS_WIN)
     if (!pProcessIdToSessionId) {
@@ -97,12 +96,12 @@ QtLocalPeer::QtLocalPeer(QObject* parent, const QString &appId)
         socketName += QLatin1Char('-') + QString::number(sessionId, 16);
     }
 #else
-    socketName += QLatin1Char('-') + QString::number(::getuid(), 16);
+    socketName += u'-' + QString::number(::getuid(), 16);
 #endif
 
     server = new QLocalServer(this);
     QString lockName = QDir(QDir::tempPath()).absolutePath()
-                       + QLatin1Char('/') + socketName
+                       + u'/' + socketName
                        + QLatin1String("-lockfile");
     lockFile.setFileName(lockName);
     lockFile.open(QIODevice::ReadWrite);
@@ -122,7 +121,7 @@ bool QtLocalPeer::isClient()
 #if defined(Q_OS_UNIX) && (QT_VERSION >= QT_VERSION_CHECK(4,5,0))
     // ### Workaround
     if (!res && server->serverError() == QAbstractSocket::AddressInUseError) {
-        QFile::remove(QDir::cleanPath(QDir::tempPath())+QLatin1Char('/')+socketName);
+        QFile::remove(QDir::cleanPath(QDir::tempPath())+u'/'+socketName);
         res = server->listen(socketName);
     }
 #endif
