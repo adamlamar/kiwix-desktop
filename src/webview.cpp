@@ -206,8 +206,7 @@ void WebView::wheelEvent(QWheelEvent *event) {
 
 void WebView::contextMenuEvent(QContextMenuEvent *event)
 {
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-    auto menu = this->page()->createStandardContextMenu();
+    QMenu *menu = new QMenu(this);
     pageAction(QWebEnginePage::OpenLinkInNewWindow)->setVisible(false);
     if (!m_linkHovered.isEmpty()) {
         if (!m_linkHovered.startsWith("zim://")) {
@@ -224,9 +223,6 @@ void WebView::contextMenuEvent(QContextMenuEvent *event)
         }
     }
     menu->exec(event->globalPos());
-#else
-    // TODO: Qt6 has no method createStandardContextMenu(). Need to find a replacement
-#endif
 }
 
 
