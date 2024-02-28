@@ -42,6 +42,7 @@
 #include <QCoreApplication>
 #include <QDataStream>
 #include <QTime>
+#include <QRegularExpression>
 
 #if defined(Q_OS_WIN)
 #include <QLibrary>
@@ -77,11 +78,21 @@ QtLocalPeer::QtLocalPeer(QObject* parent, const QString &appId)
 #endif
         prefix = id.section(u'/', -1);
     }
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     prefix.remove(QRegExp("[^a-zA-Z]"));
+#else
+    prefix.remove(QRegularExpression("[^a-zA-Z]"));
+#endif
     prefix.truncate(6);
 
     QByteArray idc = id.toUtf8();
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     quint16 idNum = qChecksum(idc.constData(), idc.size());
+#else
+    QByteArrayView v = QByteArrayView(idc);
+    quint16 idNum = qChecksum(v);
+#endif
+
     socketName = QLatin1String("qtsingleapp-") + prefix
                  + u'-' + QString::number(idNum, 16);
 

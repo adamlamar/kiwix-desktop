@@ -1,6 +1,7 @@
 #ifndef WEBVIEW_H
 #define WEBVIEW_H
 
+#include <QMenu> // avoids "`QMenu` doesn't name a type" error in Qt6
 #include <QWebEngineView>
 #include <QIcon>
 #include <QWheelEvent>

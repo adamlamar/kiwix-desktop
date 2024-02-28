@@ -5,6 +5,8 @@
 #include <QMessageBox>
 #include <QWebEngineSettings>
 
+
+
 KProfile::KProfile(QObject *parent) :
     QWebEngineProfile(parent)
 {
@@ -13,7 +15,11 @@ KProfile::KProfile(QObject *parent) :
     settings()->setAttribute(QWebEngineSettings::FullScreenSupportEnabled, true);
 }
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 void KProfile::startDownload(QWebEngineDownloadItem* download)
+#else
+void KProfile::startDownload(QWebEngineDownloadRequest* download)
+#endif
 {
     QString defaultFileName = download->url().fileName();
     QString fileName = QFileDialog::getSaveFileName(KiwixApp::instance()->getMainWindow(),
@@ -30,7 +36,11 @@ void KProfile::startDownload(QWebEngineDownloadItem* download)
 #else
     download->setDownloadFileName(fileName);
 #endif
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     connect(download, &QWebEngineDownloadItem::finished, this, &KProfile::downloadFinished);
+#else
+    connect(download, &QWebEngineDownloadRequest::isFinished, this, &KProfile::downloadFinished);
+#endif
     download->accept();
 }
 

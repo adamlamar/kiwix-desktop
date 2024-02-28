@@ -47,10 +47,14 @@ TopWidget::TopWidget(QWidget *parent) :
 
     addAction(KiwixApp::instance()->getAction(KiwixApp::OpenFileAction));
 
-    QMenu* menu = new MainMenu();
     QAction* menuAction = new QAction(this);
     menuAction->setIcon(QIcon(":/icons/more.svg"));
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    QMenu* menu = new MainMenu();
     menuAction->setMenu(menu);
+#else
+    // TODO: does menu need set in Qt6?
+#endif
     menuAction->setToolTip(gt("main-menu"));
 
     addAction(menuAction);
@@ -91,8 +95,13 @@ void TopWidget::handleWebActionEnabledChanged(QWebEnginePage::WebAction action, 
 void TopWidget::mousePressEvent(QMouseEvent *event) {
     if (event->button() != Qt::LeftButton)
         return;
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    QPoint globalPos = event->globalPos();
+#else
+    QPoint globalPos = event->globalPosition().toPoint();
+#endif
 
-    m_cursorPos = event->globalPos() + frameGeometry().topLeft() - parentWidget()->frameGeometry().topLeft();
+    m_cursorPos = globalPos + frameGeometry().topLeft() - parentWidget()->frameGeometry().topLeft();
     m_timestamp = event->timestamp();
     event->accept();
 }
@@ -101,8 +110,14 @@ void TopWidget::mouseMoveEvent(QMouseEvent *event) {
     if (event->timestamp() <= m_timestamp)
         return;
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    QPoint globalPos = event->globalPos();
+#else
+    QPoint globalPos = event->globalPosition().toPoint();
+#endif
+
     m_timestamp = event->timestamp();
-    auto delta = event->globalPos() - m_cursorPos;
+    auto delta = globalPos - m_cursorPos;
     parentWidget()->move(delta);
     event->accept();
 }

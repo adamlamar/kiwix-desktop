@@ -1,3 +1,5 @@
+#include <QMenu> // avoids "`QMenu` doesn't name a type" error in Qt6
+
 #include "webview.h"
 
 #include <QDesktopServices>
@@ -202,6 +204,8 @@ void WebView::wheelEvent(QWheelEvent *event) {
 
 void WebView::contextMenuEvent(QContextMenuEvent *event)
 {
+    // TODO: implement this menu
+    /*
     auto menu = this->page()->createStandardContextMenu();
     pageAction(QWebEnginePage::OpenLinkInNewWindow)->setVisible(false);
     if (!m_linkHovered.isEmpty()) {
@@ -219,6 +223,7 @@ void WebView::contextMenuEvent(QContextMenuEvent *event)
         }
     }
     menu->exec(event->globalPos());
+    */
 }
 
 

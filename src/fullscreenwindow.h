@@ -1,6 +1,7 @@
 #ifndef FULLSCREENWINDOW_H
 #define FULLSCREENWINDOW_H
 
+#include <QMenu> // avoids "`QMenu` doesn't name a type" error in Qt6
 #include <QWidget>
 #include <QWebEngineView>
 #include "fullscreennotification.h"

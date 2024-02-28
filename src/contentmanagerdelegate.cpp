@@ -2,7 +2,7 @@
 #include "contentmanagerdelegate.h"
 #include <QApplication>
 #include <QDialog>
-#include <QStyleOptionViewItemV4>
+#include <QStyleOptionViewItem>
 #include "kiwixapp.h"
 #include <QStyleOptionViewItem>
 #include "rownode.h"
@@ -198,7 +198,11 @@ void ContentManagerDelegate::paint(QPainter *painter, const QStyleOptionViewItem
     }
     if (index.column() == 1) {
         auto bFont = painter->font();
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
         bFont.setWeight(60);
+#else
+        bFont.setWeight(QFont::DemiBold);
+#endif
         eOpt.font = bFont;
     }
     QStyledItemDelegate::paint(painter, eOpt, index);
@@ -209,9 +213,13 @@ bool ContentManagerDelegate::editorEvent(QEvent *event, QAbstractItemModel *mode
     if(event->type() == QEvent::MouseButtonRelease )
     {
         QMouseEvent * e = (QMouseEvent *)event;
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
         int clickX = e->x();
         int clickY = e->y();
-
+#else
+        int clickX = e->position().x();
+        int clickY = e->position().y();
+#endif
         QRect r = option.rect;
         int x,y,w,h;
         x = r.left();
@@ -238,7 +246,11 @@ void ContentManagerDelegate::handleLastColumnClicked(const QModelIndex& index, Q
 {
     const auto node = static_cast<RowNode*>(index.internalPointer());
     const auto id = node->getBookId();
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     int clickX = mouseEvent->x();
+#else
+    int clickX = mouseEvent->position().x();
+#endif
 
     QRect r = option.rect;
     int x = r.left();
