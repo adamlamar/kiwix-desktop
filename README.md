@@ -73,6 +73,37 @@ You may want to simply open the kiwix-desktop project in QtCreator and
 then compile the project from there (don't forget to update
 `PKG_CONFIG_PATH` if necessary).
 
+Compilation with Qt6
+--------------------
+
+There is initial support for Qt6. Additional packages are needed:
+
+```bash
+sudo apt install qt6-base-dev qt6-base-dev-tools qt6-webengine-dev libqt6webenginecore6-bin libqt6svg6
+```
+
+And `qmake` needs to be configured to use Qt6. First confirm `qmake` is using the right version:
+
+```bash
+export QT_SELECT=qt6
+qmake --version
+```
+
+produces this output:
+
+```bash
+$ qmake --version
+QMake version 3.1
+Using Qt version 6.2.4 in /usr/lib/aarch64-linux-gnu
+```
+
+then build as normal:
+
+```bash
+qmake .
+make
+```
+
 Installation
 ------------
 
