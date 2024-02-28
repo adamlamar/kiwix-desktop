@@ -82,11 +82,13 @@ WebView::WebView(QWidget *parent)
      * If the page is search results, we put the default zoom factor
      * If in Qt 6.x, the bug is fixed this code can be removed.
      */
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     connect(this, &QWebEngineView::loadFinished, this, [=] (bool ok) {
         if (ok) {
             applyCorrectZoomFactor();
         }
     });
+#endif
 }
 
 WebView::~WebView()
@@ -204,8 +206,7 @@ void WebView::wheelEvent(QWheelEvent *event) {
 
 void WebView::contextMenuEvent(QContextMenuEvent *event)
 {
-    // TODO: implement this menu
-    /*
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     auto menu = this->page()->createStandardContextMenu();
     pageAction(QWebEnginePage::OpenLinkInNewWindow)->setVisible(false);
     if (!m_linkHovered.isEmpty()) {
@@ -223,7 +224,9 @@ void WebView::contextMenuEvent(QContextMenuEvent *event)
         }
     }
     menu->exec(event->globalPos());
-    */
+#else
+    // TODO: Qt6 has no method createStandardContextMenu(). Need to find a replacement
+#endif
 }
 
 

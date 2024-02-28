@@ -53,7 +53,9 @@ TopWidget::TopWidget(QWidget *parent) :
     QMenu* menu = new MainMenu();
     menuAction->setMenu(menu);
 #else
-    // TODO: does menu need set in Qt6?
+    // TODO: Compiling with Qt6 reports this error:
+    // class QAction has no member named ‘setMenu’
+    // Until this is fixed, clicking the "..." icon does not do anything
 #endif
     menuAction->setToolTip(gt("main-menu"));
 

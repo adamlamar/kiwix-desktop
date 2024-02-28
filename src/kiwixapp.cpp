@@ -204,10 +204,10 @@ void KiwixApp::openZimFile(const QString &zimfile)
 
 void KiwixApp::printPage()
 {
-    // TODO: fix printing
-    /*
     if(!getTabWidget()->currentZimView())
         return;
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     QPrinter* printer = new QPrinter();
     QPrintDialog printDialog(printer, mp_mainWindow);
     printDialog.setStyle(nullptr);
@@ -223,7 +223,10 @@ void KiwixApp::printPage()
             delete printer;
         });
     }
-    */
+#else
+    // Printing not yet supported in qt6
+    showMessage(gt("print-page-error"), gt("error-title"), QMessageBox::Critical);
+#endif
 }
 
 void KiwixApp::openUrl(const QString &url, bool newTab) {
