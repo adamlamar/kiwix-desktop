@@ -206,23 +206,66 @@ void WebView::wheelEvent(QWheelEvent *event) {
 
 void WebView::contextMenuEvent(QContextMenuEvent *event)
 {
-    QMenu *menu = new QMenu(this);
-    pageAction(QWebEnginePage::OpenLinkInNewWindow)->setVisible(false);
-    if (!m_linkHovered.isEmpty()) {
-        if (!m_linkHovered.startsWith("zim://")) {
-            pageAction(QWebEnginePage::OpenLinkInNewTab)->setVisible(false);
-            auto openLinkInWebBrowserAction = new QAction(gt("open-link-in-web-browser"));
-            menu->insertAction(pageAction(QWebEnginePage::DownloadLinkToDisk) , openLinkInWebBrowserAction);
-            connect(menu, &QObject::destroyed, openLinkInWebBrowserAction, &QObject::deleteLater);
-            connect(openLinkInWebBrowserAction, &QAction::triggered, this, [=](bool checked) {
-                Q_UNUSED(checked);
-                QDesktopServices::openUrl(m_linkHovered);
-            });
-        } else {
-            pageAction(QWebEnginePage::OpenLinkInNewTab)->setVisible(true);
-        }
+    QMenu* menu;
+    if (m_linkHovered.isEmpty()) {
+        menu = createStandardContextMenu();
+    } else {
+        menu = createLinkContextMenu();
     }
     menu->exec(event->globalPos());
+}
+
+
+QMenu* WebView::createStandardContextMenu() {
+    auto app = KiwixApp::instance();
+
+    QMenu* menu = new QMenu(this);
+    auto backAction = new QAction(gt("back"));
+    backAction->setEnabled(app->getAction(KiwixApp::HistoryBackAction)->isEnabled());
+    backAction->setIcon(app->getAction(KiwixApp::HistoryBackAction)->icon());
+    menu->addAction(backAction);
+    connect(menu, &QObject::destroyed, backAction, &QObject::deleteLater);
+    connect(backAction, &QAction::triggered, this, [=](bool checked) {
+        Q_UNUSED(checked);
+        KiwixApp::instance()->getTabWidget()->triggerWebPageAction(QWebEnginePage::Back);
+    });
+
+    auto forwardAction = new QAction(gt("forward"));
+    forwardAction->setEnabled(app->getAction(KiwixApp::HistoryForwardAction)->isEnabled());
+    forwardAction->setIcon(app->getAction(KiwixApp::HistoryForwardAction)->icon());
+    menu->addAction(forwardAction);
+    connect(menu, &QObject::destroyed, forwardAction, &QObject::deleteLater);
+    connect(forwardAction, &QAction::triggered, this, [=](bool checked) {
+        Q_UNUSED(checked);
+        KiwixApp::instance()->getTabWidget()->triggerWebPageAction(QWebEnginePage::Forward);
+    });
+
+    return menu;
+}
+
+
+QMenu* WebView::createLinkContextMenu() {
+    QMenu* menu = new QMenu(this);
+
+    if (!m_linkHovered.startsWith("zim://")) {
+        auto openLinkInWebBrowserAction = new QAction(gt("open-link-in-web-browser"));
+        menu->addAction(openLinkInWebBrowserAction);
+        connect(menu, &QObject::destroyed, openLinkInWebBrowserAction, &QObject::deleteLater);
+        connect(openLinkInWebBrowserAction, &QAction::triggered, this, [=](bool checked) {
+            Q_UNUSED(checked);
+            QDesktopServices::openUrl(m_linkHovered);
+        });
+    } else {
+        auto openLinkNewTab = new QAction(gt("open-link-new-tab"));
+        menu->addAction(openLinkNewTab);
+        connect(menu, &QObject::destroyed, openLinkNewTab, &QObject::deleteLater);
+        connect(openLinkNewTab, &QAction::triggered, this, [=](bool checked) {
+            Q_UNUSED(checked);
+            KiwixApp::instance()->openUrl(m_linkHovered, true);
+        });
+    }
+
+    return menu;
 }
 
 

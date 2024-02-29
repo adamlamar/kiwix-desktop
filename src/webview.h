@@ -70,6 +70,8 @@ private slots:
 private:
     void addHistoryItemAction(QMenu *menu, const QWebEngineHistoryItem &item, int n) const;
     void applyCorrectZoomFactor();
+    QMenu* createStandardContextMenu();
+    QMenu* createLinkContextMenu();
 };
 
 #endif // WEBVIEW_H
