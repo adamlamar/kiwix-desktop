@@ -257,6 +257,7 @@ QMenu* WebView::createLinkContextMenu() {
         });
     } else {
         auto openLinkNewTab = new QAction(gt("open-link-new-tab"));
+        openLinkNewTab->setIcon(QIcon(":/icons/new-tab-icon.svg"));
         menu->addAction(openLinkNewTab);
         connect(menu, &QObject::destroyed, openLinkNewTab, &QObject::deleteLater);
         connect(openLinkNewTab, &QAction::triggered, this, [=](bool checked) {
