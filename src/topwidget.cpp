@@ -47,19 +47,14 @@ TopWidget::TopWidget(QWidget *parent) :
 
     addAction(KiwixApp::instance()->getAction(KiwixApp::OpenFileAction));
 
-    QAction* menuAction = new QAction(this);
-    menuAction->setIcon(QIcon(":/icons/more.svg"));
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     QMenu* menu = new MainMenu();
-    menuAction->setMenu(menu);
-#else
-    // TODO: Compiling with Qt6 reports this error:
-    // class QAction has no member named ‘setMenu’
-    // Until this is fixed, clicking the "..." icon does not do anything
-#endif
-    menuAction->setToolTip(gt("main-menu"));
+    QToolButton *toolButton = new QToolButton(menu);
+    toolButton->setIcon(QIcon(":/icons/more.svg"));
+    toolButton->setPopupMode(QToolButton::InstantPopup);
+    toolButton->setToolTip(gt("main-menu"));
+    toolButton->setMenu(menu);
+    addWidget(toolButton);
 
-    addAction(menuAction);
     setContextMenuPolicy( Qt::PreventContextMenu );
 
 #if !SYSTEMTITLEBAR
