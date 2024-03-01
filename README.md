@@ -85,7 +85,8 @@ sudo apt install qt6-base-dev qt6-base-dev-tools qt6-webengine-dev libqt6webengi
 And `qmake` needs to be configured to use Qt6. First confirm `qmake` is using the right version:
 
 ```bash
-export QT_SELECT=qt6
+qtchooser -install qt6 $(which qmake6)   # run once
+export QT_SELECT=qt6                     # set in environments where Qt6 builds are desired
 qmake --version
 ```
 
