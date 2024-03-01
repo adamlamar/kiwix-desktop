@@ -1,4 +1,4 @@
-#include <QMenu> // avoids "`QMenu` doesn't name a type" error in Qt6
+class QMenu;
 
 #include "fullscreenwindow.h"
 #include <QAction>

@@ -5,8 +5,6 @@
 #include <QMessageBox>
 #include <QWebEngineSettings>
 
-
-
 KProfile::KProfile(QObject *parent) :
     QWebEngineProfile(parent)
 {

@@ -1,4 +1,4 @@
-#include <QMenu> // avoids "`QMenu` doesn't name a type" error in Qt6
+class QMenu;
 
 #include "tabbar.h"
 
@@ -78,7 +78,7 @@ TabBar::TabBar(QWidget *parent) :
     for (int i = 0 ; i <= 9 ; i++) {
         QAction *a = new QAction(this);
         a->setData(QVariant::fromValue(i));
-        QKeySequence ks(Qt::ALT, (Qt::Key_0 + i));
+        QKeySequence ks(Qt::ALT | (Qt::Key_0 + i));
         a->setShortcut(ks);
         addAction(a);
         connect(a, &QAction::triggered, this, [=](){
