@@ -22,6 +22,7 @@
 #include <QtConcurrent/QtConcurrentRun>
 #include "contentmanagerheader.h"
 #include <QDesktopServices>
+#include <QThreadPool>
 
 namespace
 {
@@ -729,7 +730,7 @@ QString makeHttpUrl(QString host, int port)
 } // unnamed namespace
 
 void ContentManager::updateRemoteLibrary(const QString& content) {
-    QtConcurrent::run([=]() {
+    QThreadPool::globalInstance()->start([this, content]() {
         QMutexLocker locker(&remoteLibraryLocker);
         mp_remoteLibrary = kiwix::Library::create();
         kiwix::Manager manager(mp_remoteLibrary);
