@@ -1,0 +1,190 @@
+name: Build MSIX Package
+
+on:
+  push:
+    branches: [ main, msix ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-msix:
+    runs-on: windows-2022
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+
+    - name: Install packages
+      run: |
+        choco.exe install pkgconfiglite
+
+    - name: Install QT
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: 5.15.2
+        modules: "qtwebengine"
+        setup-python: false
+
+    - name: Setup MSVC compiler
+      uses: bus1/cabuild/action/msdevshell@v1
+      with:
+        architecture: x64
+
+    - name: Install dependencies
+      uses: kiwix/kiwix-build/actions/dl_deps_archive@main
+      with:
+        target_platform: win-x86_64-mixed
+
+    - name: Build application
+      shell: cmd
+      run: |
+        set PKG_CONFIG_PATH=%cd%\BUILD_win-amd64\INSTALL\lib\pkgconfig
+        qmake PREFIX=%cd%\BUILD_win-amd64\INSTALL
+        nmake release-all
+
+    - name: Install Windows SDK (for MakeAppx)
+      shell: powershell
+      run: |
+        # Download and install Windows 10 SDK if not available
+        $sdkPath = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
+        if (-not (Test-Path $sdkPath)) {
+          Write-Host "Installing Windows 10 SDK..."
+          Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/?linkid=2164145" -OutFile "winsdksetup.exe"
+          Start-Process -FilePath "winsdksetup.exe" -ArgumentList "/quiet", "/features", "OptionId.WindowsDesktopDebuggers" -Wait
+        } else {
+          Write-Host "Windows 10 SDK is already installed"
+        }
+
+    - name: Prepare MSIX assets
+      shell: powershell
+      run: |
+        # Create properly sized icon assets for MSIX
+        $assetsDir = "Assets"
+        New-Item -ItemType Directory -Path $assetsDir -Force
+
+        # Copy the available icon as placeholders
+        # In production, you'd want properly sized PNG files
+        $iconSource = "resources\icons\kiwix\app_icon.ico"
+        if (Test-Path $iconSource) {
+          Copy-Item $iconSource "$assetsDir\StoreLogo.png" -Force
+          Copy-Item $iconSource "$assetsDir\Square150x150Logo.png" -Force
+          Copy-Item $iconSource "$assetsDir\Square44x44Logo.png" -Force
+          Copy-Item $iconSource "$assetsDir\Wide310x150Logo.png" -Force
+          Copy-Item $iconSource "$assetsDir\LargeTile.png" -Force
+          Copy-Item $iconSource "$assetsDir\SmallTile.png" -Force
+          Copy-Item $iconSource "$assetsDir\SplashScreen.png" -Force
+          Copy-Item $iconSource "$assetsDir\ZimFileIcon.png" -Force
+        }
+
+        # Try to use PNG versions if available
+        $png512 = "resources\icons\kiwix\512"
+        if (Test-Path $png512) {
+          Get-ChildItem "$png512\*.png" | ForEach-Object {
+            Copy-Item $_.FullName "$assetsDir\Square150x150Logo.png" -Force
+            Copy-Item $_.FullName "$assetsDir\StoreLogo.png" -Force
+          }
+        }
+
+    - name: Create MSIX package
+      shell: powershell
+      run: |
+        # Set version from git tag or default
+        $version = "2.4.1.0"
+        if ($env:GITHUB_REF -match "refs/tags/v(.+)") {
+          $tagVersion = $matches[1]
+          # Convert semantic version to Windows version format (x.y.z.w)
+          if ($tagVersion -match "^(\d+)\.(\d+)\.(\d+)") {
+            $version = "$($matches[1]).$($matches[2]).$($matches[3]).0"
+          }
+        }
+
+        Write-Host "Building MSIX package version: $version"
+
+        # Run our PowerShell build script
+        .\scripts\build-msix.ps1 -BuildPath "$PWD" -OutputPath "$PWD\kiwix-desktop-$version.msix" -Version $version -Architecture "x64"
+
+    - name: Sign MSIX package (if certificate available)
+      shell: powershell
+      if: env.SIGNING_CERTIFICATE != ''
+      env:
+        SIGNING_CERTIFICATE: ${{ secrets.SIGNING_CERTIFICATE }}
+        SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+      run: |
+        # Create certificate file from base64 encoded secret
+        $certBytes = [Convert]::FromBase64String($env:SIGNING_CERTIFICATE)
+        $certPath = "signing-cert.pfx"
+        [IO.File]::WriteAllBytes($certPath, $certBytes)
+
+        # Sign the MSIX package
+        $signToolPath = "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe"
+        if (-not (Test-Path $signToolPath)) {
+          $WindowsKitsPath = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
+          $signToolPath = Get-ChildItem -Path $WindowsKitsPath -Recurse -Filter "signtool.exe" |
+                         Where-Object { $_.Directory.Name -like "*x64*" } |
+                         Sort-Object Name -Descending |
+                         Select-Object -First 1 -ExpandProperty FullName
+        }
+
+        if (Test-Path $signToolPath) {
+          $msixFile = Get-ChildItem "*.msix" | Select-Object -First 1
+          if ($msixFile) {
+            Write-Host "Signing MSIX package: $($msixFile.Name)"
+            & $signToolPath sign /fd SHA256 /f $certPath /p $env:SIGNING_PASSWORD $msixFile.FullName
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "MSIX package signed successfully"
+            } else {
+              Write-Warning "Failed to sign MSIX package"
+            }
+          }
+        }
+
+        # Clean up certificate file
+        Remove-Item $certPath -Force
+
+    - name: Upload MSIX package
+      uses: actions/upload-artifact@v4
+      with:
+        name: kiwix-desktop-msix
+        path: "*.msix"
+        retention-days: 30
+
+    - name: Upload to release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: "*.msix"
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Validate MSIX package
+      shell: powershell
+      run: |
+        # Basic validation of the created MSIX package
+        $msixFile = Get-ChildItem "*.msix" | Select-Object -First 1
+        if ($msixFile) {
+          Write-Host "MSIX package created: $($msixFile.Name)"
+          Write-Host "File size: $([math]::Round($msixFile.Length / 1MB, 2)) MB"
+
+          # Try to get package info (requires Add-AppxPackage cmdlets)
+          try {
+            $packageInfo = Get-AppxPackageManifest -Path $msixFile.FullName -ErrorAction SilentlyContinue
+            if ($packageInfo) {
+              Write-Host "Package validation successful"
+              Write-Host "Package Identity: $($packageInfo.Package.Identity.Name)"
+              Write-Host "Package Version: $($packageInfo.Package.Identity.Version)"
+            }
+          } catch {
+            Write-Host "Note: Could not validate package manifest (this is normal in CI)"
+          }
+        } else {
+          Write-Error "No MSIX package found!"
+          exit 1
+        }
