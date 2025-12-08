@@ -42,12 +42,37 @@ try {
     Write-Host "Copied main executable" -ForegroundColor Yellow
 
     # Copy Qt DLLs and dependencies
-    $QtBinPath = $env:QT_ROOT_DIR
-    if ([string]::IsNullOrEmpty($QtBinPath)) {
-        $QtBinPath = "${env:Qt5_Dir}\bin"
+    $QtBinPath = $null
+
+    # Try different Qt path detection methods
+    if (-not [string]::IsNullOrEmpty($env:QT_ROOT_DIR)) {
+        $QtBinPath = Join-Path $env:QT_ROOT_DIR "bin"
+    } elseif (-not [string]::IsNullOrEmpty($env:Qt5_Dir)) {
+        $QtBinPath = Join-Path $env:Qt5_Dir "bin"
+    } else {
+        # Try to find Qt installation in GitHub Actions environment
+        $possiblePaths = @(
+            "D:\a\kiwix-desktop\Qt\5.15.2\msvc2019_64\bin",
+            "C:\Qt\5.15.2\msvc2019_64\bin",
+            "${env:RUNNER_WORKSPACE}\Qt\5.15.2\msvc2019_64\bin"
+        )
+
+        foreach ($path in $possiblePaths) {
+            if (Test-Path $path) {
+                $QtBinPath = $path
+                break
+            }
+        }
     }
-    if ([string]::IsNullOrEmpty($QtBinPath)) {
-        $QtBinPath = "C:\Qt\5.15.2\msvc2019_64\bin"
+
+    if (-not $QtBinPath -or -not (Test-Path $QtBinPath)) {
+        Write-Warning "Qt bin path not found. Trying to locate qmake..."
+        try {
+            $qmakePath = Get-Command qmake -ErrorAction Stop
+            $QtBinPath = Split-Path $qmakePath.Source
+        } catch {
+            Write-Warning "Could not locate Qt installation. Qt libraries will not be copied."
+        }
     }
 
     Write-Host "Looking for Qt libraries in: $QtBinPath" -ForegroundColor Yellow
@@ -70,34 +95,54 @@ try {
         "Qt5QmlModels.dll"
     )
 
-    foreach ($lib in $QtLibs) {
-        $libPath = Join-Path $QtBinPath $lib
-        if (Test-Path $libPath) {
-            Copy-Item $libPath $AppDir -Force
-            Write-Host "  Copied $lib" -ForegroundColor Gray
-        } else {
-            Write-Warning "Qt library not found: $libPath"
+    $copiedLibs = 0
+    if ($QtBinPath -and (Test-Path $QtBinPath)) {
+        foreach ($lib in $QtLibs) {
+            $libPath = Join-Path $QtBinPath $lib
+            if (Test-Path $libPath) {
+                Copy-Item $libPath $AppDir -Force
+                Write-Host "  Copied $lib" -ForegroundColor Gray
+                $copiedLibs++
+            } else {
+                Write-Host "  Skipping $lib (not found)" -ForegroundColor DarkGray
+            }
         }
+
+        if ($copiedLibs -eq 0) {
+            Write-Warning "No Qt libraries found. The application may not run without Qt dependencies."
+        } else {
+            Write-Host "  Copied $copiedLibs Qt libraries" -ForegroundColor Green
+        }
+    } else {
+        Write-Warning "Qt binary path not accessible: $QtBinPath"
     }
 
     # Copy Qt platforms plugin
-    $PlatformsDir = Join-Path $AppDir "platforms"
-    New-Item -ItemType Directory -Path $PlatformsDir -Force | Out-Null
-    $QtPlatformsPath = Join-Path $QtBinPath "..\plugins\platforms"
-    if (Test-Path $QtPlatformsPath) {
-        Copy-Item (Join-Path $QtPlatformsPath "qwindows.dll") $PlatformsDir -Force -ErrorAction SilentlyContinue
-        Write-Host "  Copied Qt platforms plugin" -ForegroundColor Gray
-    }
+    if ($QtBinPath -and (Test-Path $QtBinPath)) {
+        $PlatformsDir = Join-Path $AppDir "platforms"
+        New-Item -ItemType Directory -Path $PlatformsDir -Force | Out-Null
+        $QtPlatformsPath = Join-Path (Split-Path $QtBinPath) "plugins\platforms"
+        if (Test-Path $QtPlatformsPath) {
+            $qwindowsDll = Join-Path $QtPlatformsPath "qwindows.dll"
+            if (Test-Path $qwindowsDll) {
+                Copy-Item $qwindowsDll $PlatformsDir -Force
+                Write-Host "  Copied Qt platforms plugin" -ForegroundColor Gray
+            }
+        }
 
-    # Copy other Qt plugins
-    $PluginDirs = @("imageformats", "iconengines", "styles")
-    foreach ($pluginDir in $PluginDirs) {
-        $SourcePluginDir = Join-Path $QtBinPath "..\plugins\$pluginDir"
-        if (Test-Path $SourcePluginDir) {
-            $DestPluginDir = Join-Path $AppDir $pluginDir
-            New-Item -ItemType Directory -Path $DestPluginDir -Force | Out-Null
-            Copy-Item (Join-Path $SourcePluginDir "*") $DestPluginDir -Force -ErrorAction SilentlyContinue
-            Write-Host "  Copied Qt $pluginDir plugins" -ForegroundColor Gray
+        # Copy other Qt plugins
+        $PluginDirs = @("imageformats", "iconengines", "styles")
+        foreach ($pluginDir in $PluginDirs) {
+            $SourcePluginDir = Join-Path (Split-Path $QtBinPath) "plugins\$pluginDir"
+            if (Test-Path $SourcePluginDir) {
+                $DestPluginDir = Join-Path $AppDir $pluginDir
+                New-Item -ItemType Directory -Path $DestPluginDir -Force | Out-Null
+                $pluginFiles = Get-ChildItem $SourcePluginDir -Filter "*.dll" -ErrorAction SilentlyContinue
+                if ($pluginFiles) {
+                    $pluginFiles | ForEach-Object { Copy-Item $_.FullName $DestPluginDir -Force }
+                    Write-Host "  Copied Qt $pluginDir plugins ($($pluginFiles.Count) files)" -ForegroundColor Gray
+                }
+            }
         }
     }
 
@@ -121,22 +166,52 @@ try {
     $AssetsDir = Join-Path $StagingDir "Assets"
     New-Item -ItemType Directory -Path $AssetsDir -Force | Out-Null
 
-    # Copy and convert icons for MSIX package
-    $IconSourcePath = Join-Path (Split-Path $PSScriptRoot) "resources\icons\kiwix\app_icon.ico"
-    $Icon512Path = Join-Path (Split-Path $PSScriptRoot) "resources\icons\kiwix\512\kiwix-desktop.png"
+    # Try to find the best icon source
+    $BaseDir = Split-Path $PSScriptRoot
+    $IconSources = @(
+        (Join-Path $BaseDir "resources\icons\kiwix\512\kiwix-desktop.png"),
+        (Join-Path $BaseDir "resources\icons\kiwix\256\kiwix-desktop.png"),
+        (Join-Path $BaseDir "resources\icons\kiwix\128\kiwix-desktop.png"),
+        (Join-Path $BaseDir "resources\icons\kiwix\app_icon.ico")
+    )
 
-    # For this example, we'll create placeholder assets
-    # In a production setup, you'd want to create proper sized icons
-    if (Test-Path $IconSourcePath) {
-        Copy-Item $IconSourcePath (Join-Path $AssetsDir "StoreLogo.png") -Force
-        Copy-Item $IconSourcePath (Join-Path $AssetsDir "Square150x150Logo.png") -Force
-        Copy-Item $IconSourcePath (Join-Path $AssetsDir "Square44x44Logo.png") -Force
-        Copy-Item $IconSourcePath (Join-Path $AssetsDir "Wide310x150Logo.png") -Force
-        Copy-Item $IconSourcePath (Join-Path $AssetsDir "LargeTile.png") -Force
-        Copy-Item $IconSourcePath (Join-Path $AssetsDir "SmallTile.png") -Force
-        Copy-Item $IconSourcePath (Join-Path $AssetsDir "SplashScreen.png") -Force
-        Copy-Item $IconSourcePath (Join-Path $AssetsDir "ZimFileIcon.png") -Force
+    $BestIcon = $null
+    foreach ($source in $IconSources) {
+        if (Test-Path $source) {
+            $BestIcon = $source
+            break
+        }
+    }
+
+    # Required MSIX assets
+    $RequiredAssets = @(
+        "StoreLogo.png",
+        "Square150x150Logo.png",
+        "Square44x44Logo.png",
+        "Wide310x150Logo.png",
+        "LargeTile.png",
+        "SmallTile.png",
+        "SplashScreen.png",
+        "ZimFileIcon.png"
+    )
+
+    if ($BestIcon) {
+        Write-Host "Using icon source: $BestIcon" -ForegroundColor Yellow
+        foreach ($asset in $RequiredAssets) {
+            $assetPath = Join-Path $AssetsDir $asset
+            Copy-Item $BestIcon $assetPath -Force
+            Write-Host "  Created $asset" -ForegroundColor Gray
+        }
         Write-Host "Copied icon assets" -ForegroundColor Yellow
+    } else {
+        Write-Warning "No suitable icon source found. Creating minimal placeholder assets."
+        # Create minimal placeholder PNG files (1x1 pixel transparent)
+        $placeholderContent = [Convert]::FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==")
+        foreach ($asset in $RequiredAssets) {
+            $assetPath = Join-Path $AssetsDir $asset
+            [IO.File]::WriteAllBytes($assetPath, $placeholderContent)
+            Write-Host "  Created placeholder $asset" -ForegroundColor DarkGray
+        }
     }
 
     # Copy the manifest file

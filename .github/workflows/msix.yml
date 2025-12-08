@@ -31,6 +31,27 @@ jobs:
         modules: "qtwebengine"
         setup-python: false
 
+    - name: Set Qt environment for MSIX
+      shell: powershell
+      run: |
+        # The install-qt-action sets Qt5_Dir, but we need QT_ROOT_DIR for our script
+        if ($env:Qt5_Dir) {
+          echo "QT_ROOT_DIR=$env:Qt5_Dir" >> $env:GITHUB_ENV
+          Write-Host "Set QT_ROOT_DIR to: $env:Qt5_Dir"
+        }
+
+        # Also try to find Qt bin directory
+        $qtBinPath = ""
+        if ($env:Qt5_Dir) {
+          $qtBinPath = Join-Path $env:Qt5_Dir "bin"
+        }
+
+        if (Test-Path $qtBinPath) {
+          Write-Host "Qt bin directory found: $qtBinPath"
+        } else {
+          Write-Host "Qt bin directory not found at expected location"
+        }
+
     - name: Setup MSVC compiler
       uses: bus1/cabuild/action/msdevshell@v1
       with:
@@ -47,6 +68,40 @@ jobs:
         set PKG_CONFIG_PATH=%cd%\BUILD_win-amd64\INSTALL\lib\pkgconfig
         qmake PREFIX=%cd%\BUILD_win-amd64\INSTALL
         nmake release-all
+
+    - name: Debug Qt installation
+      shell: powershell
+      run: |
+        Write-Host "Qt environment variables:" -ForegroundColor Cyan
+        Get-ChildItem env: | Where-Object { $_.Name -like "*Qt*" } | ForEach-Object {
+          Write-Host "  $($_.Name): $($_.Value)"
+        }
+
+        Write-Host "`nqmake location:" -ForegroundColor Cyan
+        try {
+          $qmakePath = Get-Command qmake -ErrorAction Stop
+          Write-Host "  qmake: $($qmakePath.Source)"
+          Write-Host "  Qt bin directory: $(Split-Path $qmakePath.Source)"
+        } catch {
+          Write-Host "  qmake not found in PATH"
+        }
+
+        Write-Host "`nLooking for Qt directories:" -ForegroundColor Cyan
+        $qtPaths = @(
+          "D:\a\kiwix-desktop\Qt",
+          "C:\Qt",
+          "${env:RUNNER_WORKSPACE}\Qt"
+        )
+        foreach ($path in $qtPaths) {
+          if (Test-Path $path) {
+            Write-Host "  Found: $path"
+            Get-ChildItem $path -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+              Write-Host "    - $($_.Name)"
+            }
+          } else {
+            Write-Host "  Not found: $path"
+          }
+        }
 
     - name: Install Windows SDK (for MakeAppx)
       shell: powershell

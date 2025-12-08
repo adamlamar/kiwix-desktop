@@ -15,7 +15,6 @@
     <PublisherDisplayName>Kiwix Foundation</PublisherDisplayName>
     <Description>View offline content from Wikipedia, Project Gutenberg, TED Talks and thousands of other educational resources</Description>
     <Logo>Assets\StoreLogo.png</Logo>
-    <PackageIntegrityLevel>mediumIL</PackageIntegrityLevel>
   </Properties>
 
   <Dependencies>
