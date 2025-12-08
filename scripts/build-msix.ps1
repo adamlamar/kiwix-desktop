@@ -29,16 +29,15 @@ New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
 Write-Host "Created staging directory: $StagingDir" -ForegroundColor Yellow
 
 try {
-    # Copy application files
-    $AppDir = Join-Path $StagingDir "App"
-    New-Item -ItemType Directory -Path $AppDir -Force | Out-Null
+    # Copy application files directly to staging directory (package root)
+    # MSIX expects the executable in the package root, not in a subdirectory
 
-    # Copy the main executable
+    # Copy the main executable to package root
     $ExePath = Join-Path $BuildPath "release\kiwix-desktop.exe"
     if (-not (Test-Path $ExePath)) {
         throw "Executable not found at: $ExePath"
     }
-    Copy-Item $ExePath $AppDir -Force
+    Copy-Item $ExePath $StagingDir -Force
     Write-Host "Copied main executable" -ForegroundColor Yellow
 
     # Copy Qt DLLs and dependencies
@@ -100,7 +99,7 @@ try {
         foreach ($lib in $QtLibs) {
             $libPath = Join-Path $QtBinPath $lib
             if (Test-Path $libPath) {
-                Copy-Item $libPath $AppDir -Force
+                Copy-Item $libPath $StagingDir -Force
                 Write-Host "  Copied $lib" -ForegroundColor Gray
                 $copiedLibs++
             } else {
@@ -119,7 +118,7 @@ try {
 
     # Copy Qt platforms plugin
     if ($QtBinPath -and (Test-Path $QtBinPath)) {
-        $PlatformsDir = Join-Path $AppDir "platforms"
+        $PlatformsDir = Join-Path $StagingDir "platforms"
         New-Item -ItemType Directory -Path $PlatformsDir -Force | Out-Null
         $QtPlatformsPath = Join-Path (Split-Path $QtBinPath) "plugins\platforms"
         if (Test-Path $QtPlatformsPath) {
@@ -135,7 +134,7 @@ try {
         foreach ($pluginDir in $PluginDirs) {
             $SourcePluginDir = Join-Path (Split-Path $QtBinPath) "plugins\$pluginDir"
             if (Test-Path $SourcePluginDir) {
-                $DestPluginDir = Join-Path $AppDir $pluginDir
+                $DestPluginDir = Join-Path $StagingDir $pluginDir
                 New-Item -ItemType Directory -Path $DestPluginDir -Force | Out-Null
                 $pluginFiles = Get-ChildItem $SourcePluginDir -Filter "*.dll" -ErrorAction SilentlyContinue
                 if ($pluginFiles) {
@@ -149,7 +148,7 @@ try {
     # Copy VC++ Redistributables if available
     $VCRedistPath = Join-Path $BuildPath "vcruntime*.dll"
     Get-ChildItem $VCRedistPath -ErrorAction SilentlyContinue | ForEach-Object {
-        Copy-Item $_.FullName $AppDir -Force
+        Copy-Item $_.FullName $StagingDir -Force
         Write-Host "  Copied VC++ runtime: $($_.Name)" -ForegroundColor Gray
     }
 
@@ -157,7 +156,7 @@ try {
     $KiwixLibPath = Join-Path $BuildPath "BUILD_win-amd64\INSTALL\bin"
     if (Test-Path $KiwixLibPath) {
         Get-ChildItem (Join-Path $KiwixLibPath "*.dll") -ErrorAction SilentlyContinue | ForEach-Object {
-            Copy-Item $_.FullName $AppDir -Force
+            Copy-Item $_.FullName $StagingDir -Force
             Write-Host "  Copied Kiwix library: $($_.Name)" -ForegroundColor Gray
         }
     }
