@@ -248,7 +248,9 @@ jobs:
         }
       env:
         SIGNING_CERTIFICATE: ${{ secrets.SIGNING_CERTIFICATE }}
-        SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}    - name: Upload MSIX package
+        SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+
+    - name: Upload MSIX package
       uses: actions/upload-artifact@v4
       with:
         name: kiwix-desktop-msix
