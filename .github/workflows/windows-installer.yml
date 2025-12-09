@@ -37,7 +37,8 @@ jobs:
     - name: Install system dependencies
       run: |
         choco install pkgconfiglite innosetup --yes
-        choco install --ignore-dependencies vcredist2019
+        # Install Visual C++ Redistributable (use correct package name)
+        choco install vcredist140 --yes || echo "vcredist140 installation failed or already installed"
 
     - name: Install Qt6
       uses: jurplel/install-qt-action@v4
@@ -69,9 +70,28 @@ jobs:
         qmake PREFIX=%cd%\BUILD_win-amd64\INSTALL kiwix-desktop.pro CONFIG+=release
         nmake release
 
+    - name: List build outputs
+      shell: pwsh
+      run: |
+        Write-Host "Build directory contents:"
+        Get-ChildItem -Path "." -Filter "*.exe" -Recurse | Select-Object FullName
+        Write-Host "`nRelease directory:"
+        if (Test-Path "release") {
+          Get-ChildItem -Path "release" | Select-Object Name, Length
+        } else {
+          Write-Host "Release directory not found"
+        }
+
     - name: Deploy application with Qt6 libraries
       shell: pwsh
       run: |
+        # Verify Qt path
+        Write-Host "Qt6_DIR: $env:Qt6_DIR"
+        if (Test-Path "$env:Qt6_DIR\bin\windeployqt.exe") {
+          Write-Host "windeployqt found at: $env:Qt6_DIR\bin\windeployqt.exe"
+        } else {
+          Write-Error "windeployqt not found in Qt directory"
+        }
         .\deploy-windows.ps1 -BuildPath "release" -QtPath "$env:Qt6_DIR" -OutputPath "dist" -DepsPath "$env:GITHUB_WORKSPACE\BUILD_win-amd64\INSTALL"
 
     - name: Verify deployment

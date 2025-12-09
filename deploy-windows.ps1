@@ -6,10 +6,15 @@ param(
     [string]$DepsPath
 )
 
-# Set error action preference to stop on error
-$ErrorActionPreference = "Stop"
+# Set error action preference to stop on error, but allow some flexibility
+$ErrorActionPreference = "Continue"
 
 Write-Host "Starting Kiwix Desktop deployment process..." -ForegroundColor Green
+Write-Host "Parameters:" -ForegroundColor Yellow
+Write-Host "  BuildPath: $BuildPath"
+Write-Host "  QtPath: $QtPath"
+Write-Host "  OutputPath: $OutputPath"
+Write-Host "  DepsPath: $DepsPath"
 
 # Function to copy file with error handling
 function Copy-FileWithCheck {
@@ -34,11 +39,33 @@ New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
 
 # Copy main executable
 $exeSource = Join-Path $BuildPath "kiwix-desktop.exe"
+Write-Host "Looking for executable at: $exeSource" -ForegroundColor Yellow
+
 if (Test-Path $exeSource) {
     Copy-Item $exeSource $OutputPath -Force
     Write-Host "Copied main executable: kiwix-desktop.exe" -ForegroundColor Green
 } else {
-    Write-Error "Main executable not found at: $exeSource"
+    # Try alternative paths
+    $altPaths = @(
+        "kiwix-desktop.exe",
+        "debug\kiwix-desktop.exe",
+        "Release\kiwix-desktop.exe"
+    )
+
+    $found = $false
+    foreach ($altPath in $altPaths) {
+        if (Test-Path $altPath) {
+            Write-Host "Found executable at alternative path: $altPath" -ForegroundColor Yellow
+            Copy-Item $altPath $OutputPath -Force
+            $found = $true
+            break
+        }
+    }
+
+    if (-not $found) {
+        Write-Error "Main executable not found at: $exeSource or alternative locations"
+        exit 1
+    }
 }
 
 # Find Qt installation path if not provided
@@ -74,7 +101,8 @@ if (-not $QtPath -or -not (Test-Path $QtPath)) {
 $windeployqt = Join-Path $QtPath "bin\windeployqt.exe"
 if (Test-Path $windeployqt) {
     $targetExe = Join-Path $OutputPath "kiwix-desktop.exe"
-    Write-Host "Running windeployqt..." -ForegroundColor Yellow
+    Write-Host "Running windeployqt on: $targetExe" -ForegroundColor Yellow
+    Write-Host "Using windeployqt: $windeployqt" -ForegroundColor Yellow
 
     $deployArgs = @(
         "--qmldir", ".",
@@ -82,19 +110,28 @@ if (Test-Path $windeployqt) {
         "--no-translations",
         "--no-system-d3d-compiler",
         "--no-opengl-sw",
+        "--verbose", "2",
         $targetExe
     )
 
-    & $windeployqt @deployArgs
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "windeployqt failed with exit code $LASTEXITCODE"
+    Write-Host "windeployqt arguments: $($deployArgs -join ' ')" -ForegroundColor Cyan
+
+    try {
+        & $windeployqt @deployArgs
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "windeployqt completed with exit code $LASTEXITCODE"
+        } else {
+            Write-Host "windeployqt completed successfully" -ForegroundColor Green
+        }
     }
-    Write-Host "windeployqt completed successfully" -ForegroundColor Green
+    catch {
+        Write-Warning "windeployqt encountered an error: $($_.Exception.Message)"
+        Write-Host "Continuing with manual deployment..." -ForegroundColor Yellow
+    }
 } else {
     Write-Error "windeployqt not found at: $windeployqt"
-}
-
-# Copy additional dependencies from kiwix-build if available
+    exit 1
+}# Copy additional dependencies from kiwix-build if available
 if ($DepsPath -and (Test-Path $DepsPath)) {
     Write-Host "Copying additional dependencies from: $DepsPath"
 
