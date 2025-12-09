@@ -54,7 +54,7 @@ if (Test-Path $qtConfPath) {
     $currentContent = Get-Content $qtConfPath -Raw -ErrorAction SilentlyContinue
     Write-Host "Current qt.conf content:" -ForegroundColor Gray
     $currentContent.Split("`n") | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
-    
+
     # Check if it contains problematic QML paths
     if ($currentContent -like "*Qml*") {
         Write-Host "⚠ Detected potentially problematic QML paths in qt.conf" -ForegroundColor Yellow
@@ -84,7 +84,7 @@ $qtDlls = Get-ChildItem . -Filter "Qt*.dll"
 Write-Host "Qt DLLs found: $($qtDlls.Count)" -ForegroundColor Green
 
 $criticalQt6Dlls = @(
-    "Qt6Core.dll", "Qt6Gui.dll", "Qt6Widgets.dll", 
+    "Qt6Core.dll", "Qt6Gui.dll", "Qt6Widgets.dll",
     "Qt6Network.dll", "Qt6WebEngineCore.dll", "Qt6WebEngineWidgets.dll"
 )
 
@@ -110,27 +110,27 @@ Write-Host "Set QT_QPA_PLATFORM_PLUGIN_PATH: $env:QT_QPA_PLATFORM_PLUGIN_PATH" -
 Write-Host "`nTest 1: Version check..." -ForegroundColor Cyan
 try {
     $process = Start-Process -FilePath ".\kiwix-desktop.exe" -ArgumentList "--version" -Wait -PassThru -NoNewWindow -RedirectStandardOutput "version_output.txt" -RedirectStandardError "version_error.txt"
-    
+
     Write-Host "Exit code: $($process.ExitCode)"
-    
+
     if (Test-Path "version_output.txt") {
         $output = Get-Content "version_output.txt" -Raw
         if ($output.Trim()) {
             Write-Host "Output: $output" -ForegroundColor Green
         }
     }
-    
+
     if (Test-Path "version_error.txt") {
         $error = Get-Content "version_error.txt" -Raw
         if ($error.Trim()) {
             Write-Host "Error: $error" -ForegroundColor Red
         }
     }
-    
+
     # Cleanup
     Remove-Item "version_output.txt" -ErrorAction SilentlyContinue
     Remove-Item "version_error.txt" -ErrorAction SilentlyContinue
-    
+
 } catch {
     Write-Host "Execution failed: $($_.Exception.Message)" -ForegroundColor Red
 }
@@ -140,7 +140,7 @@ Write-Host "`nTest 2: Brief GUI launch test..." -ForegroundColor Cyan
 try {
     $process = Start-Process -FilePath ".\kiwix-desktop.exe" -PassThru
     Start-Sleep -Seconds 3
-    
+
     if (-not $process.HasExited) {
         Write-Host "✓ Application launched successfully!" -ForegroundColor Green
         Write-Host "Terminating test application..." -ForegroundColor Yellow

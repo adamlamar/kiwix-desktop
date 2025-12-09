@@ -4,7 +4,7 @@
 param(
     [Parameter(Mandatory=$true)]
     [string]$PackagePath,
-    
+
     [switch]$ApplyFixes,
     [switch]$Verbose
 )
@@ -23,7 +23,7 @@ Push-Location $PackagePath
 Write-Host "1. WebEngine Component Analysis:" -ForegroundColor Yellow
 $webEngineComponents = @(
     "Qt6WebEngineCore.dll",
-    "Qt6WebEngineWidgets.dll", 
+    "Qt6WebEngineWidgets.dll",
     "QtWebEngineProcess.exe"
 )
 
@@ -62,11 +62,11 @@ if (Test-Path "qt.conf") {
     $qtConfContent = Get-Content "qt.conf" -Raw
     Write-Host "Current content:" -ForegroundColor Gray
     $qtConfContent.Split("`n") | ForEach-Object { Write-Host "  $_" -ForegroundColor Gray }
-    
+
     # Check for WebEngine-specific settings
     $hasWebEngineSection = $qtConfContent -match "\[WebEngine\]"
     $hasSubprocessPath = $qtConfContent -match "BrowserSubprocessPath"
-    
+
     Write-Host "`nCompatibility check:" -ForegroundColor Gray
     Write-Host "  WebEngine section: $(if ($hasWebEngineSection) { "✓" } else { "✗" })" -ForegroundColor $(if ($hasWebEngineSection) { "Green" } else { "Red" })
     Write-Host "  Subprocess path: $(if ($hasSubprocessPath) { "✓" } else { "✗" })" -ForegroundColor $(if ($hasSubprocessPath) { "Green" } else { "Red" })
@@ -81,7 +81,7 @@ if (Test-Path "QtWebEngineProcess.exe") {
         $webEngineInfo = Get-Command ".\QtWebEngineProcess.exe"
         Write-Host "  ✓ WebEngine process accessible" -ForegroundColor Green
         Write-Host "  Version: $($webEngineInfo.FileVersionInfo.FileVersion)" -ForegroundColor Gray
-        
+
         # Test basic execution
         $testProcess = Start-Process -FilePath ".\QtWebEngineProcess.exe" -ArgumentList "--version" -Wait -PassThru -WindowStyle Hidden -ErrorAction SilentlyContinue
         if ($testProcess.ExitCode -ne $null) {
@@ -105,7 +105,7 @@ Write-Host "  MSIX environment detected: $(if ($isInMSIX) { "Yes" } else { "No" 
 try {
     $currentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
     Write-Host "  Current user: $currentUser" -ForegroundColor Gray
-    
+
     $exeAcl = Get-Acl "kiwix-desktop.exe" -ErrorAction SilentlyContinue
     if ($exeAcl) {
         Write-Host "  ✓ File permissions accessible" -ForegroundColor Green
@@ -119,7 +119,7 @@ try {
 # 6. Apply fixes if requested
 if ($ApplyFixes) {
     Write-Host "`n6. Applying WebEngine MSIX Fixes:" -ForegroundColor Yellow
-    
+
     # Fix 1: Enhanced qt.conf for MSIX
     $enhancedQtConf = @"
 [Paths]
@@ -136,14 +136,14 @@ ProcessModel = process-per-site
 [Platform]
 WindowsArguments = --disable-web-security --allow-file-access-from-files --disable-features=VizDisplayCompositor --no-sandbox
 "@
-    
+
     try {
         $enhancedQtConf | Set-Content "qt.conf" -Encoding UTF8
         Write-Host "  ✓ Enhanced qt.conf created with MSIX compatibility settings" -ForegroundColor Green
     } catch {
         Write-Host "  ✗ Could not create enhanced qt.conf: $($_.Exception.Message)" -ForegroundColor Red
     }
-    
+
     # Fix 2: Create WebEngine environment script
     $webEngineScript = @"
 @echo off
@@ -153,14 +153,14 @@ set QTWEBENGINE_CHROMIUM_FLAGS=--no-sandbox --disable-web-security --allow-file-
 set QT_WEBENGINE_DEBUG_CHROMIUM_FLAGS=--no-sandbox
 start "" "%~dp0kiwix-desktop.exe" %*
 "@
-    
+
     try {
         $webEngineScript | Set-Content "launch-kiwix.bat" -Encoding ASCII
         Write-Host "  ✓ Created WebEngine compatibility launcher" -ForegroundColor Green
     } catch {
         Write-Host "  ✗ Could not create launcher: $($_.Exception.Message)" -ForegroundColor Red
     }
-    
+
     # Fix 3: Create PowerShell launcher with environment
     $psLauncher = @"
 # WebEngine MSIX Launcher
@@ -174,7 +174,7 @@ Set-Location (Split-Path -Parent `$MyInvocation.MyCommand.Path)
 # Launch application
 Start-Process -FilePath ".\kiwix-desktop.exe" -ArgumentList `$args -WorkingDirectory (Get-Location)
 "@
-    
+
     try {
         $psLauncher | Set-Content "launch-kiwix.ps1" -Encoding UTF8
         Write-Host "  ✓ Created PowerShell WebEngine launcher" -ForegroundColor Green
