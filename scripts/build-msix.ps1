@@ -153,6 +153,30 @@ try {
         Write-Host "  Copied VC++ runtime: $($_.Name)" -ForegroundColor Gray
     }
 
+    # Also look for additional VC++ redistributable DLLs
+    $AdditionalVCLibs = @("MSVCP140.dll", "VCRUNTIME140.dll", "VCRUNTIME140_1.dll", "api-ms-win-crt-*.dll")
+    foreach ($pattern in $AdditionalVCLibs) {
+        # Try to find in system directories or Qt installation
+        $systemPaths = @(
+            "${env:WINDIR}\System32",
+            "${env:WINDIR}\SysWOW64",
+            $(if ($QtBinPath) { Split-Path $QtBinPath }),
+            $(if ($QtBinPath) { $QtBinPath })
+        )
+
+        foreach ($sysPath in $systemPaths) {
+            if ($sysPath -and (Test-Path $sysPath)) {
+                Get-ChildItem (Join-Path $sysPath $pattern) -ErrorAction SilentlyContinue | ForEach-Object {
+                    $destPath = Join-Path $StagingDir $_.Name
+                    if (-not (Test-Path $destPath)) {
+                        Copy-Item $_.FullName $destPath -Force
+                        Write-Host "  Copied VC++ redistributable: $($_.Name)" -ForegroundColor Gray
+                    }
+                }
+            }
+        }
+    }
+
     # Copy kiwix libraries from the build
     $KiwixLibPath = Join-Path $BuildPath "BUILD_win-amd64\INSTALL\bin"
     if (Test-Path $KiwixLibPath) {
