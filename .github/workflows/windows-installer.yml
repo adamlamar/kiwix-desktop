@@ -1,0 +1,144 @@
+name: Windows Installer
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'resources/**'
+      - 'ui/**'
+      - 'kiwix-desktop.pro'
+      - '.github/workflows/windows-installer.yml'
+      - 'kiwix-desktop.iss'
+      - 'deploy-windows.ps1'
+  push:
+    branches:
+      - main
+      - innosetup
+  release:
+    types: [published]
+
+env:
+  QT_VERSION: 6.8.1
+  CMAKE_BUILD_TYPE: Release
+
+jobs:
+  build-windows-installer:
+    runs-on: windows-2022
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+
+    - name: Install system dependencies
+      run: |
+        choco install pkgconfiglite innosetup --yes
+        choco install --ignore-dependencies vcredist2019
+
+    - name: Install Qt6
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: ${{ env.QT_VERSION }}
+        host: windows
+        target: desktop
+        arch: win64_msvc2022_64
+        modules: 'qtwebengine qtwebchannel qtpositioning'
+        setup-python: false
+        cache: true
+
+    - name: Setup MSVC compiler
+      uses: bus1/cabuild/action/msdevshell@v1
+      with:
+        architecture: x64
+
+    - name: Install kiwix dependencies
+      uses: kiwix/kiwix-build/actions/dl_deps_archive@main
+      with:
+        target_platform: win-x86_64-mixed
+
+    - name: Build application
+      shell: cmd
+      run: |
+        set PKG_CONFIG_PATH=%cd%\BUILD_win-amd64\INSTALL\lib\pkgconfig
+        echo Building with Qt version: %Qt6_DIR%
+        qmake --version
+        qmake PREFIX=%cd%\BUILD_win-amd64\INSTALL kiwix-desktop.pro CONFIG+=release
+        nmake release
+
+    - name: Deploy application with Qt6 libraries
+      shell: pwsh
+      run: |
+        .\deploy-windows.ps1 -BuildPath "release" -QtPath "$env:Qt6_DIR" -OutputPath "dist" -DepsPath "$env:GITHUB_WORKSPACE\BUILD_win-amd64\INSTALL"
+
+    - name: Verify deployment
+      shell: pwsh
+      run: |
+        Write-Host "Checking deployed files..."
+        if (Test-Path "dist\kiwix-desktop.exe") {
+          Write-Host "✓ Main executable found" -ForegroundColor Green
+        } else {
+          Write-Error "✗ Main executable missing"
+        }
+
+        $qtLibs = @("Qt6Core.dll", "Qt6Gui.dll", "Qt6Widgets.dll", "Qt6WebEngineWidgets.dll")
+        foreach ($lib in $qtLibs) {
+          if (Test-Path "dist\$lib") {
+            Write-Host "✓ $lib found" -ForegroundColor Green
+          } else {
+            Write-Warning "⚠ $lib missing"
+          }
+        }
+
+        Write-Host "`nDeployed file count:"
+        (Get-ChildItem -Path "dist" -Recurse -File).Count
+
+    - name: Create installer with Inno Setup
+      shell: cmd
+      run: |
+        echo Creating installer...
+        "C:\Program Files (x86)\Inno Setup 6\iscc.exe" /Q kiwix-desktop.iss
+        if %ERRORLEVEL% NEQ 0 (
+          echo Inno Setup failed with exit code %ERRORLEVEL%
+          exit /b %ERRORLEVEL%
+        )
+        echo Installer created successfully
+
+    - name: Verify installer creation
+      shell: pwsh
+      run: |
+        $installerPath = "installer\kiwix-desktop-2.4.1-windows-installer.exe"
+        if (Test-Path $installerPath) {
+          $size = (Get-Item $installerPath).Length / 1MB
+          Write-Host "✓ Installer created: $installerPath ($([math]::Round($size, 2)) MB)" -ForegroundColor Green
+        } else {
+          Write-Error "✗ Installer not found at expected location"
+        }
+
+    - name: Upload installer artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: kiwix-desktop-windows-installer
+        path: installer/*.exe
+        retention-days: 30
+
+    - name: Upload deployment artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: kiwix-desktop-windows-portable
+        path: dist/
+        retention-days: 30
+
+    - name: Upload installer to release
+      if: github.event_name == 'release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: installer/kiwix-desktop-2.4.1-windows-installer.exe
+        asset_name: kiwix-desktop-${{ github.event.release.tag_name }}-windows-installer.exe
+        asset_content_type: application/octet-stream
