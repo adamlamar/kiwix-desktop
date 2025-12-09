@@ -34,7 +34,7 @@ try {
     $cerPath = $OutputPath -replace "\.pfx$", ".cer"
     Export-Certificate -Cert $cert -FilePath $cerPath | Out-Null
 
-    Write-Host "✅ Certificate created successfully!" -ForegroundColor Green
+    Write-Host "Certificate created successfully!" -ForegroundColor Green
     Write-Host "  PFX file: $OutputPath (password: $Password)" -ForegroundColor Cyan
     Write-Host "  CER file: $cerPath" -ForegroundColor Cyan
 
@@ -43,7 +43,7 @@ try {
         Write-Host "Installing certificate to Trusted Root..." -ForegroundColor Yellow
         try {
             Import-Certificate -FilePath $cerPath -CertStoreLocation "Cert:\LocalMachine\Root" | Out-Null
-            Write-Host "✅ Certificate installed to Trusted Root store" -ForegroundColor Green
+            Write-Host "Certificate installed to Trusted Root store" -ForegroundColor Green
         } catch {
             Write-Warning "Failed to install to Trusted Root: $($_.Exception.Message)"
         }
@@ -51,18 +51,20 @@ try {
         # Also add to Trusted People
         try {
             Import-Certificate -FilePath $cerPath -CertStoreLocation "Cert:\LocalMachine\TrustedPeople" | Out-Null
-            Write-Host "✅ Certificate installed to Trusted People store" -ForegroundColor Green
+            Write-Host "Certificate installed to Trusted People store" -ForegroundColor Green
         } catch {
             Write-Warning "Failed to install to Trusted People: $($_.Exception.Message)"
         }
     } else {
-        Write-Host "`n⚠️  To install the certificate for testing:" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "To install the certificate for testing:" -ForegroundColor Yellow
         Write-Host "  1. Run PowerShell as Administrator" -ForegroundColor White
         Write-Host "  2. Import-Certificate -FilePath '$cerPath' -CertStoreLocation 'Cert:\LocalMachine\Root'" -ForegroundColor Gray
         Write-Host "  3. Import-Certificate -FilePath '$cerPath' -CertStoreLocation 'Cert:\LocalMachine\TrustedPeople'" -ForegroundColor Gray
     }
 
-    Write-Host "`n📋 Next steps:" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Next steps:" -ForegroundColor Cyan
     Write-Host "  1. Use this certificate to sign your MSIX package:" -ForegroundColor White
     Write-Host "     signtool sign /fd SHA256 /f `"$OutputPath`" /p `"$Password`" your-package.msix" -ForegroundColor Gray
     Write-Host "  2. Or add to GitHub secrets for CI/CD:" -ForegroundColor White
@@ -74,8 +76,9 @@ try {
     exit 1
 }
 
-Write-Host "`n⚠️  IMPORTANT NOTES:" -ForegroundColor Yellow
-Write-Host "  • This is a DEVELOPMENT certificate only!" -ForegroundColor White
-Write-Host "  • Do NOT use for production or distribution!" -ForegroundColor White
-Write-Host "  • For Microsoft Store, you need a trusted CA certificate!" -ForegroundColor White
-Write-Host "  • Users will see security warnings with self-signed certificates!" -ForegroundColor White
+Write-Host ""
+Write-Host "IMPORTANT NOTES:" -ForegroundColor Yellow
+Write-Host "  This is a DEVELOPMENT certificate only!" -ForegroundColor White
+Write-Host "  Do NOT use for production or distribution!" -ForegroundColor White
+Write-Host "  For Microsoft Store, you need a trusted CA certificate!" -ForegroundColor White
+Write-Host "  Users will see security warnings with self-signed certificates!" -ForegroundColor White
