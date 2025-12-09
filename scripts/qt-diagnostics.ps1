@@ -26,7 +26,8 @@ $qt6Files = @(
     "Qt6Gui.dll",
     "Qt6Widgets.dll",
     "Qt6WebEngineCore.dll",
-    "Qt6WebEngineWidgets.dll"
+    "Qt6WebEngineWidgets.dll",
+    "Qt6QmlMeta.dll"
 )
 
 $essentialFiles = @("kiwix-desktop.exe")
@@ -139,6 +140,7 @@ Write-Host "Checking Visual C++ Runtime files:" -ForegroundColor White
 $vcRedistFiles = @(
     "MSVCP140.dll",
     "MSVCP140_1.dll",
+    "MSVCP140_2.dll",
     "VCRUNTIME140.dll",
     "VCRUNTIME140_1.dll"
 )

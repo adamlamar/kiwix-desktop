@@ -157,7 +157,7 @@ BrowserSubprocessPath = QtWebEngineProcess.exe
             "Qt6Core.dll", "Qt6Gui.dll", "Qt6Widgets.dll", "Qt6Network.dll",
             "Qt6WebEngineCore.dll", "Qt6WebEngineWidgets.dll", "Qt6WebEngineQuick.dll",
             "Qt6Quick.dll", "Qt6QuickWidgets.dll", "Qt6Qml.dll", "Qt6QmlModels.dll",
-            "Qt6Positioning.dll", "Qt6PrintSupport.dll", "Qt6Sql.dll", "Qt6Svg.dll",
+            "Qt6QmlMeta.dll", "Qt6Positioning.dll", "Qt6PrintSupport.dll", "Qt6Sql.dll", "Qt6Svg.dll",
             "Qt6TextToSpeech.dll", "Qt6Multimedia.dll", "Qt6MultimediaWidgets.dll",
             "Qt6OpenGL.dll", "Qt6Concurrent.dll", "Qt6WebChannel.dll"
         )
@@ -167,6 +167,7 @@ BrowserSubprocessPath = QtWebEngineProcess.exe
             "Qt6DBus.dll", "Qt6Designer.dll", "Qt6Help.dll", "Qt6Location.dll",
             "Qt6Sensors.dll", "Qt6SerialPort.dll", "Qt6WebSockets.dll",
             "Qt6Xml.dll", "Qt6QmlWorkerScript.dll", "Qt6QmlLocalStorage.dll",
+            "Qt6QmlCore.dll", "Qt6QmlNetwork.dll", "Qt6QuickControls2.dll", "Qt6QuickTemplates2.dll",
             "libEGL.dll", "libGLESv2.dll", "d3dcompiler_47.dll", "opengl32sw.dll"
         )
     } else {
@@ -313,8 +314,12 @@ BrowserSubprocessPath = QtWebEngineProcess.exe
         Write-Host "  Copied VC++ runtime: $($_.Name)" -ForegroundColor Gray
     }
 
-    # Also look for additional VC++ redistributable DLLs
-    $AdditionalVCLibs = @("MSVCP140.dll", "MSVCP140_1.dll", "VCRUNTIME140.dll", "VCRUNTIME140_1.dll", "api-ms-win-crt-*.dll")
+    # Also look for additional VC++ redistributable DLLs (including Qt6 requirements)
+    $AdditionalVCLibs = @(
+        "MSVCP140.dll", "MSVCP140_1.dll", "MSVCP140_2.dll",
+        "VCRUNTIME140.dll", "VCRUNTIME140_1.dll",
+        "api-ms-win-crt-*.dll"
+    )
     foreach ($pattern in $AdditionalVCLibs) {
         # Try to find in system directories or Qt installation
         $systemPaths = @(
