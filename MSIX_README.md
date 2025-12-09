@@ -140,14 +140,66 @@ The package requests these Windows capabilities:
 - Verify VC++ redistributables are present
 - Test with Windows Application Verifier
 
-**"Package signature is invalid"**
-- Ensure certificate is trusted on the target system
-- For development, enable Developer Mode in Windows Settings
-- Use self-signed certificates only for testing
+**"Package signature is invalid / Certificate could not be verified (0x800B010A)"**
+
+This is the most common issue when testing MSIX packages. Here are solutions:
+
+#### For Development/Testing:
+
+**Option 1: Enable Developer Mode (Recommended)**
+```powershell
+# Run as Administrator
+.\scripts\install-dev-msix.ps1 -MsixPath "your-package.msix" -EnableDeveloperMode
+```
+Or manually:
+1. Open Settings → Update & Security → For developers
+2. Enable "Developer mode"
+3. Install the MSIX package normally
+
+**Option 2: Create and Install Development Certificate**
+```powershell
+# Create a self-signed certificate
+.\scripts\create-dev-cert.ps1
+
+# Sign your package
+signtool sign /fd SHA256 /f "kiwix-dev-cert.pfx" /p "password123" "your-package.msix"
+
+# Install the certificate (run as Administrator)
+Import-Certificate -FilePath "kiwix-dev-cert.cer" -CertStoreLocation "Cert:\LocalMachine\Root"
+Import-Certificate -FilePath "kiwix-dev-cert.cer" -CertStoreLocation "Cert:\LocalMachine\TrustedPeople"
+```
+
+**Option 3: Use App Installer**
+1. Right-click the .msix file
+2. Select "Open with App Installer"
+3. Click "Install" (may show security warning)
+4. Click "Install anyway" if prompted
+
+#### For Production Distribution:
+
+**Microsoft Store Submission:**
+- Microsoft Store handles signing automatically
+- No need for your own certificate
+- Requires Microsoft Store developer account ($19)
 
 **"File type association not working"**
 - Check that the manifest file associations are correct
 - Verify the application handles command-line arguments for opened files
+
+### Certificate Installation Issues
+
+**"Access Denied" when installing certificate**
+- Run PowerShell as Administrator
+- Ensure certificate is not corrupted
+
+**"Certificate is not trusted"**
+- Install to both "Trusted Root" AND "Trusted People" stores
+- Restart Windows after certificate installation
+
+**"Package still won't install after certificate installation"**
+- Clear Windows package cache: `Remove-Item "$env:LOCALAPPDATA\Packages\*Kiwix*" -Recurse -Force`
+- Restart Windows
+- Try installation again
 
 ### Debugging
 
