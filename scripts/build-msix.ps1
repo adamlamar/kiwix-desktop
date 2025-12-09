@@ -150,7 +150,6 @@ BrowserSubprocessPath = QtWebEngineProcess.exe
             Write-Warning "QtBinPath: $QtBinPath (exists: $(Test-Path $QtBinPath -ErrorAction SilentlyContinue))"
         }
     }
-    }
 
     # Essential Qt DLLs for a Qt WebEngine application
     if ($QtVersion -eq 6) {
