@@ -40,10 +40,29 @@ try {
     Copy-Item $ExePath $StagingDir -Force
     Write-Host "Copied main executable" -ForegroundColor Yellow
 
+    # Copy the wrapper script for better Qt environment setup
+    # Note: MSIX doesn't support .bat entry points, but we'll include it for reference
+    $WrapperScript = Join-Path $PSScriptRoot "kiwix-desktop-wrapper.bat"
+    if (Test-Path $WrapperScript) {
+        Copy-Item $WrapperScript $StagingDir -Force
+        Write-Host "Copied wrapper script (for reference)" -ForegroundColor Gray
+    }
+
+    # Copy Qt diagnostics tool for troubleshooting
+    $DiagnosticsScript = Join-Path $PSScriptRoot "qt-diagnostics.bat"
+    if (Test-Path $DiagnosticsScript) {
+        Copy-Item $DiagnosticsScript $StagingDir -Force
+        Write-Host "Copied Qt diagnostics tool" -ForegroundColor Gray
+    }
+
     # Create qt.conf to help Qt find plugins in MSIX package
     $QtConfContent = @"
 [Paths]
 Plugins = .
+Imports = qml
+Qml2Imports = qml
+Binaries = .
+Data = .
 "@
     $QtConfPath = Join-Path $StagingDir "qt.conf"
     Set-Content -Path $QtConfPath -Value $QtConfContent -Encoding UTF8
@@ -86,34 +105,46 @@ Plugins = .
     Write-Host "Looking for Qt libraries in: $QtBinPath" -ForegroundColor Yellow
 
     # Required Qt libraries for kiwix-desktop
-    $QtLibs = @(
-        "Qt5Core.dll",
-        "Qt5Gui.dll",
-        "Qt5Widgets.dll",
-        "Qt5Network.dll",
-        "Qt5WebEngine.dll",
-        "Qt5WebEngineCore.dll",
-        "Qt5WebEngineWidgets.dll",
-        "Qt5WebChannel.dll",
-        "Qt5PrintSupport.dll",
-        "Qt5Positioning.dll",
-        "Qt5Quick.dll",
-        "Qt5QuickWidgets.dll",
-        "Qt5Qml.dll",
-        "Qt5QmlModels.dll",
-        "Qt5TextToSpeech.dll"
+        # Essential Qt DLLs for a Qt WebEngine application
+    $RequiredQtDlls = @(
+        "Qt5Core.dll", "Qt5Gui.dll", "Qt5Widgets.dll", "Qt5Network.dll",
+        "Qt5WebEngine.dll", "Qt5WebEngineCore.dll", "Qt5WebEngineWidgets.dll",
+        "Qt5Quick.dll", "Qt5QuickWidgets.dll", "Qt5Qml.dll", "Qt5QmlModels.dll",
+        "Qt5Positioning.dll", "Qt5PrintSupport.dll", "Qt5Sql.dll", "Qt5Svg.dll",
+        "Qt5TextToSpeech.dll", "Qt5Multimedia.dll", "Qt5MultimediaWidgets.dll",
+        "Qt5OpenGL.dll", "Qt5WinExtras.dll", "Qt5Concurrent.dll", "Qt5Test.dll"
     )
+
+    # Additional Qt support DLLs that might be needed
+    $OptionalQtDlls = @(
+        "Qt5DBus.dll", "Qt5Designer.dll", "Qt5Help.dll", "Qt5Location.dll",
+        "Qt5Sensors.dll", "Qt5SerialPort.dll", "Qt5WebChannel.dll", "Qt5WebSockets.dll",
+        "Qt5Xml.dll", "Qt5XmlPatterns.dll", "libEGL.dll", "libGLESV2.dll",
+        "d3dcompiler_47.dll", "opengl32sw.dll"
+    )
+
+    # Combine all Qt DLLs for copying
+    $QtLibs = $RequiredQtDlls + $OptionalQtDlls
 
     $copiedLibs = 0
     if ($QtBinPath -and (Test-Path $QtBinPath)) {
+        Write-Host "Found Qt installation at: $QtBinPath" -ForegroundColor Green
         foreach ($lib in $QtLibs) {
             $libPath = Join-Path $QtBinPath $lib
             if (Test-Path $libPath) {
                 Copy-Item $libPath $StagingDir -Force
-                Write-Host "  Copied $lib" -ForegroundColor Gray
+                if ($RequiredQtDlls -contains $lib) {
+                    Write-Host "  Copied required: $lib" -ForegroundColor Green
+                } else {
+                    Write-Host "  Copied optional: $lib" -ForegroundColor Gray
+                }
                 $copiedLibs++
             } else {
-                Write-Host "  Skipping $lib (not found)" -ForegroundColor DarkGray
+                if ($RequiredQtDlls -contains $lib) {
+                    Write-Host "  WARNING: Missing required Qt library: $lib" -ForegroundColor Yellow
+                } else {
+                    Write-Host "  Skipping optional: $lib (not found)" -ForegroundColor DarkGray
+                }
             }
         }
 
@@ -126,21 +157,27 @@ Plugins = .
         Write-Warning "Qt binary path not accessible: $QtBinPath"
     }
 
-    # Copy Qt platforms plugin
+    # Copy Qt platforms plugin (CRITICAL for Qt applications)
     if ($QtBinPath -and (Test-Path $QtBinPath)) {
         $PlatformsDir = Join-Path $StagingDir "platforms"
         New-Item -ItemType Directory -Path $PlatformsDir -Force | Out-Null
         $QtPlatformsPath = Join-Path (Split-Path $QtBinPath) "plugins\platforms"
         if (Test-Path $QtPlatformsPath) {
-            $qwindowsDll = Join-Path $QtPlatformsPath "qwindows.dll"
-            if (Test-Path $qwindowsDll) {
-                Copy-Item $qwindowsDll $PlatformsDir -Force
-                Write-Host "  Copied Qt platforms plugin" -ForegroundColor Gray
+            # Copy all platform plugins, not just qwindows.dll
+            Get-ChildItem $QtPlatformsPath -Filter "*.dll" | ForEach-Object {
+                Copy-Item $_.FullName $PlatformsDir -Force
+                if ($_.Name -eq "qwindows.dll") {
+                    Write-Host "  Copied CRITICAL platform plugin: $($_.Name)" -ForegroundColor Green
+                } else {
+                    Write-Host "  Copied platform plugin: $($_.Name)" -ForegroundColor Gray
+                }
             }
+        } else {
+            Write-Host "  ERROR: Qt platforms plugin directory not found at: $QtPlatformsPath" -ForegroundColor Red
         }
 
         # Copy other Qt plugins
-        $PluginDirs = @("imageformats", "iconengines", "styles")
+        $PluginDirs = @("imageformats", "iconengines", "styles", "bearer", "audio", "mediaservice", "playlistformats")
         foreach ($pluginDir in $PluginDirs) {
             $SourcePluginDir = Join-Path (Split-Path $QtBinPath) "plugins\$pluginDir"
             if (Test-Path $SourcePluginDir) {
@@ -152,6 +189,24 @@ Plugins = .
                     Write-Host "  Copied Qt $pluginDir plugins ($($pluginFiles.Count) files)" -ForegroundColor Gray
                 }
             }
+        }
+
+        # Copy Qt WebEngine support files
+        $QtWebEngineDir = Join-Path (Split-Path $QtBinPath) "resources"
+        if (Test-Path $QtWebEngineDir) {
+            $DestWebEngineDir = Join-Path $StagingDir "resources"
+            New-Item -ItemType Directory -Path $DestWebEngineDir -Force | Out-Null
+            Get-ChildItem $QtWebEngineDir -File -ErrorAction SilentlyContinue | ForEach-Object {
+                Copy-Item $_.FullName $DestWebEngineDir -Force
+                Write-Host "  Copied WebEngine resource: $($_.Name)" -ForegroundColor Gray
+            }
+        }
+
+        # Copy QtWebEngineProcess.exe if it exists
+        $QtWebEngineProcess = Join-Path (Split-Path $QtBinPath) "QtWebEngineProcess.exe"
+        if (Test-Path $QtWebEngineProcess) {
+            Copy-Item $QtWebEngineProcess $StagingDir -Force
+            Write-Host "  Copied QtWebEngineProcess.exe" -ForegroundColor Gray
         }
     }
 
