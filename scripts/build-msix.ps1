@@ -52,7 +52,14 @@ try {
     $DiagnosticsScript = Join-Path $PSScriptRoot "qt-diagnostics.bat"
     if (Test-Path $DiagnosticsScript) {
         Copy-Item $DiagnosticsScript $StagingDir -Force
-        Write-Host "Copied Qt diagnostics tool" -ForegroundColor Gray
+        Write-Host "Copied Qt diagnostics (batch)" -ForegroundColor Gray
+    }
+
+    # Copy PowerShell diagnostics tool (better for MSIX environment)
+    $DiagnosticsPowerShell = Join-Path $PSScriptRoot "qt-diagnostics.ps1"
+    if (Test-Path $DiagnosticsPowerShell) {
+        Copy-Item $DiagnosticsPowerShell $StagingDir -Force
+        Write-Host "Copied Qt diagnostics (PowerShell)" -ForegroundColor Gray
     }
 
     # Create qt.conf to help Qt find plugins in MSIX package
