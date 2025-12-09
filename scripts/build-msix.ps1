@@ -69,27 +69,16 @@ try {
         Write-Host "Copied MSIX debugging helper" -ForegroundColor Gray
     }
 
-    # Create qt.conf to help Qt find plugins in MSIX package
-    $QtConfContent = @"
+    # Create qt.conf for Qt6 with MSIX-compatible settings
+    Write-Host "Creating qt.conf with MSIX compatibility..." -ForegroundColor Green
+    $qtConf = @"
 [Paths]
-Plugins = .
-Binaries = .
-Data = .
-Translations = .
-
-[Platforms]
-WindowsArguments = platforms
+Plugins = plugins
 
 [WebEngine]
-LocalesPath = locales
-ResourcesPath = resources
 BrowserSubprocessPath = QtWebEngineProcess.exe
 "@
-    $QtConfPath = Join-Path $StagingDir "qt.conf"
-    Set-Content -Path $QtConfPath -Value $QtConfContent -Encoding UTF8
-    Write-Host "Created qt.conf without missing QML paths" -ForegroundColor Yellow
-
-    # Copy Qt DLLs and dependencies
+    $qtConf | Set-Content "$StagingDir\qt.conf" -Encoding UTF8    # Copy Qt DLLs and dependencies
     $QtBinPath = $null
 
     # Try different Qt path detection methods
