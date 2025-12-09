@@ -39,6 +39,8 @@ jobs:
         if ($env:Qt6_Dir) {
           echo "QT_ROOT_DIR=$env:Qt6_Dir" >> $env:GITHUB_ENV
           Write-Host "Set QT_ROOT_DIR to: $env:Qt6_Dir"
+        } else {
+          Write-Host "Warning: Qt6_Dir environment variable not set"
         }
 
         # Also try to find Qt bin directory
@@ -47,10 +49,30 @@ jobs:
           $qtBinPath = Join-Path $env:Qt6_Dir "bin"
         }
 
-        if (Test-Path $qtBinPath) {
+        if (-not [string]::IsNullOrEmpty($qtBinPath) -and (Test-Path $qtBinPath)) {
           Write-Host "Qt bin directory found: $qtBinPath"
+          # List Qt DLLs to verify installation
+          $qtDlls = Get-ChildItem "$qtBinPath\Qt*.dll" -ErrorAction SilentlyContinue
+          if ($qtDlls) {
+            Write-Host "Found Qt DLLs: $($qtDlls.Count) files"
+            $qtDlls | Select-Object -First 5 | ForEach-Object { Write-Host "  - $($_.Name)" }
+          } else {
+            Write-Host "Warning: No Qt DLLs found in bin directory"
+          }
         } else {
-          Write-Host "Qt bin directory not found at expected location"
+          Write-Host "Qt bin directory not found at expected location: $qtBinPath"
+          # Try to find Qt installation elsewhere
+          $possibleQtDirs = @(
+            "${env:RUNNER_WORKSPACE}\Qt",
+            "C:\Qt",
+            "D:\a\kiwix-desktop\Qt"
+          )
+          foreach ($dir in $possibleQtDirs) {
+            if (Test-Path $dir) {
+              Write-Host "Found Qt directory at: $dir"
+              Get-ChildItem $dir -Directory | ForEach-Object { Write-Host "  - $($_.Name)" }
+            }
+          }
         }
 
     - name: Setup MSVC compiler

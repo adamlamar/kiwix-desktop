@@ -120,13 +120,14 @@ BrowserSubprocessPath = QtWebEngineProcess.exe
         }
     }
 
-    if (-not $QtBinPath -or -not (Test-Path $QtBinPath)) {
+    if (-not $QtBinPath -or [string]::IsNullOrEmpty($QtBinPath) -or -not (Test-Path $QtBinPath)) {
         Write-Warning "Qt bin path not found. Trying to locate qmake..."
         try {
             $qmakePath = Get-Command qmake -ErrorAction Stop
             $QtBinPath = Split-Path $qmakePath.Source
         } catch {
             Write-Warning "Could not locate Qt installation. Qt libraries will not be copied."
+            $QtBinPath = $null
         }
     }
 
@@ -135,12 +136,20 @@ BrowserSubprocessPath = QtWebEngineProcess.exe
     # Required Qt libraries for kiwix-desktop
         # Detect Qt version based on available DLLs
     $QtVersion = 5
-    if ($QtBinPath -and (Test-Path (Join-Path $QtBinPath "Qt6Core.dll"))) {
+    if (-not [string]::IsNullOrEmpty($QtBinPath) -and (Test-Path $QtBinPath) -and (Test-Path (Join-Path $QtBinPath "Qt6Core.dll"))) {
         $QtVersion = 6
         Write-Host "Detected Qt6 installation" -ForegroundColor Green
-    } elseif ($QtBinPath -and (Test-Path (Join-Path $QtBinPath "Qt5Core.dll"))) {
+    } elseif (-not [string]::IsNullOrEmpty($QtBinPath) -and (Test-Path $QtBinPath) -and (Test-Path (Join-Path $QtBinPath "Qt5Core.dll"))) {
         $QtVersion = 5
         Write-Host "Detected Qt5 installation" -ForegroundColor Yellow
+    } else {
+        Write-Warning "Could not detect Qt version or Qt installation not found"
+        if ([string]::IsNullOrEmpty($QtBinPath)) {
+            Write-Warning "QtBinPath is empty or null. Application may not work without Qt libraries."
+        } else {
+            Write-Warning "QtBinPath: $QtBinPath (exists: $(Test-Path $QtBinPath -ErrorAction SilentlyContinue))"
+        }
+    }
     }
 
     # Essential Qt DLLs for a Qt WebEngine application
@@ -184,7 +193,7 @@ BrowserSubprocessPath = QtWebEngineProcess.exe
     $QtLibs = $RequiredQtDlls + $OptionalQtDlls
 
     $copiedLibs = 0
-    if ($QtBinPath -and (Test-Path $QtBinPath)) {
+    if (-not [string]::IsNullOrEmpty($QtBinPath) -and (Test-Path $QtBinPath)) {
         Write-Host "Found Qt installation at: $QtBinPath" -ForegroundColor Green
         foreach ($lib in $QtLibs) {
             $libPath = Join-Path $QtBinPath $lib
@@ -215,7 +224,7 @@ BrowserSubprocessPath = QtWebEngineProcess.exe
     }
 
     # Copy Qt platforms plugin (CRITICAL for Qt applications)
-    if ($QtBinPath -and (Test-Path $QtBinPath)) {
+    if (-not [string]::IsNullOrEmpty($QtBinPath) -and (Test-Path $QtBinPath)) {
         $PlatformsDir = Join-Path $StagingDir "platforms"
         New-Item -ItemType Directory -Path $PlatformsDir -Force | Out-Null
         $QtPlatformsPath = Join-Path (Split-Path $QtBinPath) "plugins\platforms"
