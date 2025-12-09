@@ -40,6 +40,19 @@ try {
     Copy-Item $ExePath $StagingDir -Force
     Write-Host "Copied main executable" -ForegroundColor Yellow
 
+    # Create a launcher script to help with Qt path issues in MSIX
+    $LauncherContent = @"
+@echo off
+REM Launcher script for Kiwix Desktop in MSIX package
+cd /d "%~dp0"
+set QT_PLUGIN_PATH=%~dp0
+set QT_QPA_PLATFORM_PLUGIN_PATH=%~dp0platforms
+"%~dp0kiwix-desktop.exe" %*
+"@
+    $LauncherPath = Join-Path $StagingDir "kiwix-desktop-launcher.cmd"
+    Set-Content -Path $LauncherPath -Value $LauncherContent -Encoding ASCII
+    Write-Host "Created launcher script" -ForegroundColor Yellow
+
     # Copy Qt DLLs and dependencies
     $QtBinPath = $null
 
