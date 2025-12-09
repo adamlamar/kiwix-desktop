@@ -97,11 +97,16 @@ BrowserSubprocessPath = QtWebEngineProcess.exe
     # Try different Qt path detection methods
     if (-not [string]::IsNullOrEmpty($env:QT_ROOT_DIR)) {
         $QtBinPath = Join-Path $env:QT_ROOT_DIR "bin"
+    } elseif (-not [string]::IsNullOrEmpty($env:Qt6_Dir)) {
+        $QtBinPath = Join-Path $env:Qt6_Dir "bin"
     } elseif (-not [string]::IsNullOrEmpty($env:Qt5_Dir)) {
         $QtBinPath = Join-Path $env:Qt5_Dir "bin"
     } else {
         # Try to find Qt installation in GitHub Actions environment
         $possiblePaths = @(
+            "D:\a\kiwix-desktop\Qt\6.8.1\msvc2022_64\bin",
+            "C:\Qt\6.8.1\msvc2022_64\bin",
+            "${env:RUNNER_WORKSPACE}\Qt\6.8.1\msvc2022_64\bin",
             "D:\a\kiwix-desktop\Qt\5.15.2\msvc2019_64\bin",
             "C:\Qt\5.15.2\msvc2019_64\bin",
             "${env:RUNNER_WORKSPACE}\Qt\5.15.2\msvc2019_64\bin"
@@ -128,23 +133,52 @@ BrowserSubprocessPath = QtWebEngineProcess.exe
     Write-Host "Looking for Qt libraries in: $QtBinPath" -ForegroundColor Yellow
 
     # Required Qt libraries for kiwix-desktop
-        # Essential Qt DLLs for a Qt WebEngine application
-    $RequiredQtDlls = @(
-        "Qt5Core.dll", "Qt5Gui.dll", "Qt5Widgets.dll", "Qt5Network.dll",
-        "Qt5WebEngine.dll", "Qt5WebEngineCore.dll", "Qt5WebEngineWidgets.dll",
-        "Qt5Quick.dll", "Qt5QuickWidgets.dll", "Qt5Qml.dll", "Qt5QmlModels.dll",
-        "Qt5Positioning.dll", "Qt5PrintSupport.dll", "Qt5Sql.dll", "Qt5Svg.dll",
-        "Qt5TextToSpeech.dll", "Qt5Multimedia.dll", "Qt5MultimediaWidgets.dll",
-        "Qt5OpenGL.dll", "Qt5WinExtras.dll", "Qt5Concurrent.dll", "Qt5Test.dll"
-    )
+        # Detect Qt version based on available DLLs
+    $QtVersion = 5
+    if ($QtBinPath -and (Test-Path (Join-Path $QtBinPath "Qt6Core.dll"))) {
+        $QtVersion = 6
+        Write-Host "Detected Qt6 installation" -ForegroundColor Green
+    } elseif ($QtBinPath -and (Test-Path (Join-Path $QtBinPath "Qt5Core.dll"))) {
+        $QtVersion = 5
+        Write-Host "Detected Qt5 installation" -ForegroundColor Yellow
+    }
 
-    # Additional Qt support DLLs that might be needed
-    $OptionalQtDlls = @(
-        "Qt5DBus.dll", "Qt5Designer.dll", "Qt5Help.dll", "Qt5Location.dll",
-        "Qt5Sensors.dll", "Qt5SerialPort.dll", "Qt5WebChannel.dll", "Qt5WebSockets.dll",
-        "Qt5Xml.dll", "Qt5XmlPatterns.dll", "libEGL.dll", "libGLESV2.dll",
-        "d3dcompiler_47.dll", "opengl32sw.dll"
-    )
+    # Essential Qt DLLs for a Qt WebEngine application
+    if ($QtVersion -eq 6) {
+        $RequiredQtDlls = @(
+            "Qt6Core.dll", "Qt6Gui.dll", "Qt6Widgets.dll", "Qt6Network.dll",
+            "Qt6WebEngineCore.dll", "Qt6WebEngineWidgets.dll", "Qt6WebEngineQuick.dll",
+            "Qt6Quick.dll", "Qt6QuickWidgets.dll", "Qt6Qml.dll", "Qt6QmlModels.dll",
+            "Qt6Positioning.dll", "Qt6PrintSupport.dll", "Qt6Sql.dll", "Qt6Svg.dll",
+            "Qt6TextToSpeech.dll", "Qt6Multimedia.dll", "Qt6MultimediaWidgets.dll",
+            "Qt6OpenGL.dll", "Qt6Concurrent.dll", "Qt6WebChannel.dll"
+        )
+
+        # Additional Qt6 support DLLs that might be needed
+        $OptionalQtDlls = @(
+            "Qt6DBus.dll", "Qt6Designer.dll", "Qt6Help.dll", "Qt6Location.dll",
+            "Qt6Sensors.dll", "Qt6SerialPort.dll", "Qt6WebSockets.dll",
+            "Qt6Xml.dll", "Qt6QmlWorkerScript.dll", "Qt6QmlLocalStorage.dll",
+            "libEGL.dll", "libGLESv2.dll", "d3dcompiler_47.dll", "opengl32sw.dll"
+        )
+    } else {
+        $RequiredQtDlls = @(
+            "Qt5Core.dll", "Qt5Gui.dll", "Qt5Widgets.dll", "Qt5Network.dll",
+            "Qt5WebEngine.dll", "Qt5WebEngineCore.dll", "Qt5WebEngineWidgets.dll",
+            "Qt5Quick.dll", "Qt5QuickWidgets.dll", "Qt5Qml.dll", "Qt5QmlModels.dll",
+            "Qt5Positioning.dll", "Qt5PrintSupport.dll", "Qt5Sql.dll", "Qt5Svg.dll",
+            "Qt5TextToSpeech.dll", "Qt5Multimedia.dll", "Qt5MultimediaWidgets.dll",
+            "Qt5OpenGL.dll", "Qt5WinExtras.dll", "Qt5Concurrent.dll", "Qt5Test.dll"
+        )
+
+        # Additional Qt5 support DLLs that might be needed
+        $OptionalQtDlls = @(
+            "Qt5DBus.dll", "Qt5Designer.dll", "Qt5Help.dll", "Qt5Location.dll",
+            "Qt5Sensors.dll", "Qt5SerialPort.dll", "Qt5WebChannel.dll", "Qt5WebSockets.dll",
+            "Qt5Xml.dll", "Qt5XmlPatterns.dll", "libEGL.dll", "libGLESV2.dll",
+            "d3dcompiler_47.dll", "opengl32sw.dll"
+        )
+    }
 
     # Combine all Qt DLLs for copying
     $QtLibs = $RequiredQtDlls + $OptionalQtDlls

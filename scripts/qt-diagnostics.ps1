@@ -11,18 +11,44 @@ Write-Host ""
 
 Write-Host "Checking for key Qt files:" -ForegroundColor White
 
-# Check essential Qt DLLs
-$essentialQtFiles = @(
+# Check essential Qt DLLs - try both Qt5 and Qt6
+$qt5Files = @(
     "Qt5Core.dll",
     "Qt5Gui.dll",
     "Qt5Widgets.dll",
     "Qt5WebEngine.dll",
     "Qt5WebEngineCore.dll",
-    "Qt5WebEngineWidgets.dll",
-    "kiwix-desktop.exe"
+    "Qt5WebEngineWidgets.dll"
 )
 
-foreach ($file in $essentialQtFiles) {
+$qt6Files = @(
+    "Qt6Core.dll",
+    "Qt6Gui.dll",
+    "Qt6Widgets.dll",
+    "Qt6WebEngineCore.dll",
+    "Qt6WebEngineWidgets.dll"
+)
+
+$essentialFiles = @("kiwix-desktop.exe")
+
+# Detect Qt version
+$qtVersion = "Unknown"
+$qtFiles = @()
+if (Test-Path "Qt6Core.dll") {
+    $qtVersion = "Qt6"
+    $qtFiles = $qt6Files
+    Write-Host "Detected Qt6 installation" -ForegroundColor Green
+} elseif (Test-Path "Qt5Core.dll") {
+    $qtVersion = "Qt5"
+    $qtFiles = $qt5Files
+    Write-Host "Detected Qt5 installation" -ForegroundColor Yellow
+} else {
+    Write-Host "No Qt installation detected" -ForegroundColor Red
+}
+
+$allEssentialFiles = $qtFiles + $essentialFiles
+
+foreach ($file in $allEssentialFiles) {
     if (Test-Path $file) {
         if ($file -eq "kiwix-desktop.exe") {
             Write-Host "  [OK] $file found" -ForegroundColor Green
@@ -134,9 +160,11 @@ Write-Host ""
 Write-Host "Attempting to get file version info:" -ForegroundColor White
 
 try {
-    if (Test-Path "Qt5Core.dll") {
-        $qtCoreVersion = (Get-ItemProperty "Qt5Core.dll").VersionInfo
-        Write-Host "  Qt5Core.dll version: $($qtCoreVersion.FileVersion)" -ForegroundColor Gray
+    $qtCoreFile = if (Test-Path "Qt6Core.dll") { "Qt6Core.dll" } elseif (Test-Path "Qt5Core.dll") { "Qt5Core.dll" } else { $null }
+
+    if ($qtCoreFile) {
+        $qtCoreVersion = (Get-ItemProperty $qtCoreFile).VersionInfo
+        Write-Host "  $qtCoreFile version: $($qtCoreVersion.FileVersion)" -ForegroundColor Gray
     }
 
     if (Test-Path "kiwix-desktop.exe") {
@@ -146,16 +174,23 @@ try {
 } catch {
     Write-Host "  [WARN] Could not retrieve version information" -ForegroundColor Yellow
 }
-
 Write-Host ""
 Write-Host "=== Diagnostics complete ===" -ForegroundColor Cyan
 Write-Host ""
 
 # Summary
 $criticalIssues = 0
-if (-not (Test-Path "Qt5Core.dll")) { $criticalIssues++ }
+if ($qtVersion -eq "Unknown") {
+    $criticalIssues++
+} elseif ($qtVersion -eq "Qt6" -and -not (Test-Path "Qt6Core.dll")) {
+    $criticalIssues++
+} elseif ($qtVersion -eq "Qt5" -and -not (Test-Path "Qt5Core.dll")) {
+    $criticalIssues++
+}
 if (-not (Test-Path "platforms\qwindows.dll")) { $criticalIssues++ }
 if (-not (Test-Path "kiwix-desktop.exe")) { $criticalIssues++ }
+
+Write-Host "Qt Version: $qtVersion" -ForegroundColor Cyan
 
 if ($criticalIssues -eq 0) {
     Write-Host "SUMMARY: No critical issues detected. Application should be able to start." -ForegroundColor Green

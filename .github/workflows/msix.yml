@@ -28,23 +28,23 @@ jobs:
     - name: Install QT
       uses: jurplel/install-qt-action@v4
       with:
-        version: 5.15.2
-        modules: "qtwebengine"
+        version: 6.8.1
+        modules: "qtwebengine qtwebchannel qtmultimedia qtpositioning qtspeech"
         setup-python: false
 
     - name: Set Qt environment for MSIX
       shell: powershell
       run: |
-        # The install-qt-action sets Qt5_Dir, but we need QT_ROOT_DIR for our script
-        if ($env:Qt5_Dir) {
-          echo "QT_ROOT_DIR=$env:Qt5_Dir" >> $env:GITHUB_ENV
-          Write-Host "Set QT_ROOT_DIR to: $env:Qt5_Dir"
+        # The install-qt-action sets Qt6_Dir, but we need QT_ROOT_DIR for our script
+        if ($env:Qt6_Dir) {
+          echo "QT_ROOT_DIR=$env:Qt6_Dir" >> $env:GITHUB_ENV
+          Write-Host "Set QT_ROOT_DIR to: $env:Qt6_Dir"
         }
 
         # Also try to find Qt bin directory
         $qtBinPath = ""
-        if ($env:Qt5_Dir) {
-          $qtBinPath = Join-Path $env:Qt5_Dir "bin"
+        if ($env:Qt6_Dir) {
+          $qtBinPath = Join-Path $env:Qt6_Dir "bin"
         }
 
         if (Test-Path $qtBinPath) {
