@@ -69,6 +69,23 @@ try {
         Write-Host "Copied MSIX debugging helper" -ForegroundColor Gray
     }
 
+    # Copy additional troubleshooting scripts
+    $TroubleshootingScripts = @(
+        "debug-msix-environment.ps1",
+        "fix-msix-execution.ps1",
+        "webengine-msix-compat.ps1"
+    )
+
+    foreach ($script in $TroubleshootingScripts) {
+        $scriptPath = Join-Path $PSScriptRoot $script
+        if (Test-Path $scriptPath) {
+            Copy-Item $scriptPath $StagingDir -Force
+            Write-Host "Copied troubleshooting script: $script" -ForegroundColor Gray
+        } else {
+            Write-Host "Troubleshooting script not found: $script" -ForegroundColor Yellow
+        }
+    }
+
     # Create qt.conf for Qt6 with MSIX-compatible settings
     Write-Host "Creating qt.conf with MSIX compatibility..." -ForegroundColor Green
     $qtConf = @"
