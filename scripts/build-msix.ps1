@@ -73,10 +73,9 @@ try {
     $TroubleshootingScripts = @(
         "debug-msix-environment.ps1",
         "fix-msix-execution.ps1",
-        "webengine-msix-compat.ps1"
-    )
-
-    foreach ($script in $TroubleshootingScripts) {
+        "webengine-msix-compat.ps1",
+        "launch-kiwix-workaround.ps1"
+    )    foreach ($script in $TroubleshootingScripts) {
         $scriptPath = Join-Path $PSScriptRoot $script
         if (Test-Path $scriptPath) {
             Copy-Item $scriptPath $StagingDir -Force
