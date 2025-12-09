@@ -154,7 +154,7 @@ try {
     }
 
     # Also look for additional VC++ redistributable DLLs
-    $AdditionalVCLibs = @("MSVCP140.dll", "VCRUNTIME140.dll", "VCRUNTIME140_1.dll", "api-ms-win-crt-*.dll")
+    $AdditionalVCLibs = @("MSVCP140.dll", "MSVCP140_1.dll", "VCRUNTIME140.dll", "VCRUNTIME140_1.dll", "api-ms-win-crt-*.dll")
     foreach ($pattern in $AdditionalVCLibs) {
         # Try to find in system directories or Qt installation
         $systemPaths = @(
