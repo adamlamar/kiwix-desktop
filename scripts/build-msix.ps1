@@ -62,6 +62,13 @@ try {
         Write-Host "Copied Qt diagnostics (PowerShell)" -ForegroundColor Gray
     }
 
+    # Copy MSIX debugging helper
+    $DebugHelper = Join-Path $PSScriptRoot "debug-msix-app.ps1"
+    if (Test-Path $DebugHelper) {
+        Copy-Item $DebugHelper $StagingDir -Force
+        Write-Host "Copied MSIX debugging helper" -ForegroundColor Gray
+    }
+
     # Create qt.conf to help Qt find plugins in MSIX package
     $QtConfContent = @"
 [Paths]
