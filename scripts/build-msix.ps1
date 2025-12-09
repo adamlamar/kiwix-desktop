@@ -73,8 +73,6 @@ try {
     $QtConfContent = @"
 [Paths]
 Plugins = .
-Imports = qml
-Qml2Imports = qml
 Binaries = .
 Data = .
 Translations = .
@@ -89,7 +87,7 @@ BrowserSubprocessPath = QtWebEngineProcess.exe
 "@
     $QtConfPath = Join-Path $StagingDir "qt.conf"
     Set-Content -Path $QtConfPath -Value $QtConfContent -Encoding UTF8
-    Write-Host "Created enhanced qt.conf for Qt and WebEngine" -ForegroundColor Yellow
+    Write-Host "Created qt.conf without missing QML paths" -ForegroundColor Yellow
 
     # Copy Qt DLLs and dependencies
     $QtBinPath = $null
