@@ -28,14 +28,15 @@ try {
     # Export certificate to PFX file
     Write-Host "Exporting certificate to PFX file..." -ForegroundColor Yellow
     $securePwd = ConvertTo-SecureString -String $Password -Force -AsPlainText
-    Export-PfxCertificate -Cert $cert -FilePath $OutputPath -Password $securePwd | Out-Null
+    $fullOutputPath = Join-Path $PWD $OutputPath
+    Export-PfxCertificate -Cert $cert -FilePath $fullOutputPath -Password $securePwd | Out-Null
 
     # Export public certificate for installation
-    $cerPath = $OutputPath -replace "\.pfx$", ".cer"
+    $cerPath = $fullOutputPath -replace "\.pfx$", ".cer"
     Export-Certificate -Cert $cert -FilePath $cerPath | Out-Null
 
     Write-Host "Certificate created successfully!" -ForegroundColor Green
-    Write-Host "  PFX file: $OutputPath (password: $Password)" -ForegroundColor Cyan
+    Write-Host "  PFX file: $fullOutputPath (password: $Password)" -ForegroundColor Cyan
     Write-Host "  CER file: $cerPath" -ForegroundColor Cyan
 
     # Add certificate to trusted root
@@ -66,9 +67,9 @@ try {
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Cyan
     Write-Host "  1. Use this certificate to sign your MSIX package:" -ForegroundColor White
-    Write-Host "     signtool sign /fd SHA256 /f `"$OutputPath`" /p `"$Password`" your-package.msix" -ForegroundColor Gray
+    Write-Host "     signtool sign /fd SHA256 /f `"$fullOutputPath`" /p `"$Password`" your-package.msix" -ForegroundColor Gray
     Write-Host "  2. Or add to GitHub secrets for CI/CD:" -ForegroundColor White
-    Write-Host "     SIGNING_CERTIFICATE: $(([Convert]::ToBase64String([IO.File]::ReadAllBytes($OutputPath))))" -ForegroundColor Gray
+    Write-Host "     SIGNING_CERTIFICATE: $(([Convert]::ToBase64String([IO.File]::ReadAllBytes($fullOutputPath))))" -ForegroundColor Gray
     Write-Host "     SIGNING_PASSWORD: $Password" -ForegroundColor Gray
 
 } catch {
