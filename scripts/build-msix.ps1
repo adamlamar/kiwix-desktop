@@ -70,10 +70,19 @@ Imports = qml
 Qml2Imports = qml
 Binaries = .
 Data = .
+Translations = .
+
+[Platforms]
+WindowsArguments = platforms
+
+[WebEngine]
+LocalesPath = locales
+ResourcesPath = resources
+BrowserSubprocessPath = QtWebEngineProcess.exe
 "@
     $QtConfPath = Join-Path $StagingDir "qt.conf"
     Set-Content -Path $QtConfPath -Value $QtConfContent -Encoding UTF8
-    Write-Host "Created qt.conf for plugin path resolution" -ForegroundColor Yellow
+    Write-Host "Created enhanced qt.conf for Qt and WebEngine" -ForegroundColor Yellow
 
     # Copy Qt DLLs and dependencies
     $QtBinPath = $null
@@ -198,7 +207,7 @@ Data = .
             }
         }
 
-        # Copy Qt WebEngine support files
+        # Copy Qt WebEngine support files (resources and locales)
         $QtWebEngineDir = Join-Path (Split-Path $QtBinPath) "resources"
         if (Test-Path $QtWebEngineDir) {
             $DestWebEngineDir = Join-Path $StagingDir "resources"
@@ -209,11 +218,42 @@ Data = .
             }
         }
 
-        # Copy QtWebEngineProcess.exe if it exists
-        $QtWebEngineProcess = Join-Path (Split-Path $QtBinPath) "QtWebEngineProcess.exe"
-        if (Test-Path $QtWebEngineProcess) {
-            Copy-Item $QtWebEngineProcess $StagingDir -Force
-            Write-Host "  Copied QtWebEngineProcess.exe" -ForegroundColor Gray
+        # Copy Qt WebEngine locales directory
+        $QtLocalesDir = Join-Path (Split-Path $QtBinPath) "translations\qtwebengine_locales"
+        if (-not (Test-Path $QtLocalesDir)) {
+            # Try alternative location
+            $QtLocalesDir = Join-Path (Split-Path $QtBinPath) "resources\locales"
+        }
+        if (Test-Path $QtLocalesDir) {
+            $DestLocalesDir = Join-Path $StagingDir "locales"
+            New-Item -ItemType Directory -Path $DestLocalesDir -Force | Out-Null
+            Get-ChildItem $QtLocalesDir -File "*.pak" -ErrorAction SilentlyContinue | ForEach-Object {
+                Copy-Item $_.FullName $DestLocalesDir -Force
+                Write-Host "  Copied WebEngine locale: $($_.Name)" -ForegroundColor Gray
+            }
+        } else {
+            Write-Host "  WARNING: Qt WebEngine locales directory not found" -ForegroundColor Yellow
+        }
+
+        # Copy QtWebEngineProcess.exe - try multiple locations
+        $QtWebEngineProcessLocations = @(
+            (Join-Path (Split-Path $QtBinPath) "QtWebEngineProcess.exe"),
+            (Join-Path $QtBinPath "QtWebEngineProcess.exe"),
+            (Join-Path (Split-Path (Split-Path $QtBinPath)) "bin\QtWebEngineProcess.exe")
+        )
+
+        $QtWebEngineProcessFound = $false
+        foreach ($location in $QtWebEngineProcessLocations) {
+            if (Test-Path $location) {
+                Copy-Item $location $StagingDir -Force
+                Write-Host "  Copied QtWebEngineProcess.exe from: $location" -ForegroundColor Green
+                $QtWebEngineProcessFound = $true
+                break
+            }
+        }
+
+        if (-not $QtWebEngineProcessFound) {
+            Write-Host "  WARNING: QtWebEngineProcess.exe not found - WebEngine will fail" -ForegroundColor Red
         }
     }
 
