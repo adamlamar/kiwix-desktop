@@ -34,9 +34,9 @@ Push-Location $packagePath
 Write-Host "`nStep 3: Testing file access..." -ForegroundColor Yellow
 try {
     $fileInfo = Get-Item "kiwix-desktop.exe"
-    Write-Host "✓ File accessible: $($fileInfo.Length) bytes" -ForegroundColor Green
+    Write-Host "File accessible: $($fileInfo.Length) bytes" -ForegroundColor Green
 } catch {
-    Write-Host "✗ File access failed: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "File access failed: $($_.Exception.Message)" -ForegroundColor Red
     Pop-Location
     exit 1
 }
@@ -57,24 +57,24 @@ if (Test-Path $qtConfPath) {
 
     # Check if it contains problematic QML paths
     if ($currentContent -like "*Qml*") {
-        Write-Host "⚠ Detected potentially problematic QML paths in qt.conf" -ForegroundColor Yellow
+        Write-Host "Detected potentially problematic QML paths in qt.conf" -ForegroundColor Yellow
         Write-Host "Fixing qt.conf..." -ForegroundColor Yellow
         try {
             $correctQtConf | Set-Content $qtConfPath -Encoding UTF8
-            Write-Host "✓ qt.conf fixed" -ForegroundColor Green
+            Write-Host "qt.conf fixed" -ForegroundColor Green
         } catch {
-            Write-Host "✗ Could not fix qt.conf: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "Could not fix qt.conf: $($_.Exception.Message)" -ForegroundColor Red
         }
     } else {
-        Write-Host "✓ qt.conf appears correct" -ForegroundColor Green
+        Write-Host "qt.conf appears correct" -ForegroundColor Green
     }
 } else {
     Write-Host "qt.conf missing, creating..." -ForegroundColor Yellow
     try {
         $correctQtConf | Set-Content $qtConfPath -Encoding UTF8
-        Write-Host "✓ qt.conf created" -ForegroundColor Green
+        Write-Host "qt.conf created" -ForegroundColor Green
     } catch {
-        Write-Host "✗ Could not create qt.conf: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Could not create qt.conf: $($_.Exception.Message)" -ForegroundColor Red
     }
 }
 
@@ -90,9 +90,9 @@ $criticalQt6Dlls = @(
 
 foreach ($dll in $criticalQt6Dlls) {
     if (Test-Path $dll) {
-        Write-Host "  ✓ $dll" -ForegroundColor Green
+        Write-Host "  Found: $dll" -ForegroundColor Green
     } else {
-        Write-Host "  ✗ $dll MISSING" -ForegroundColor Red
+        Write-Host "  Missing: $dll" -ForegroundColor Red
     }
 }
 
@@ -142,12 +142,12 @@ try {
     Start-Sleep -Seconds 3
 
     if (-not $process.HasExited) {
-        Write-Host "✓ Application launched successfully!" -ForegroundColor Green
+        Write-Host "Application launched successfully!" -ForegroundColor Green
         Write-Host "Terminating test application..." -ForegroundColor Yellow
         $process.Kill()
         $process.WaitForExit()
     } else {
-        Write-Host "✗ Application exited immediately with code: $($process.ExitCode)" -ForegroundColor Red
+        Write-Host "Application exited immediately with code: $($process.ExitCode)" -ForegroundColor Red
     }
 } catch {
     Write-Host "GUI launch failed: $($_.Exception.Message)" -ForegroundColor Red
@@ -175,12 +175,12 @@ Working Directory: $(Get-Location)
 "@
 
 $report | Set-Content "kiwix-diagnostic-report.txt"
-Write-Host "✓ Diagnostic report saved to: kiwix-diagnostic-report.txt" -ForegroundColor Green
+Write-Host "Diagnostic report saved to: kiwix-diagnostic-report.txt" -ForegroundColor Green
 
 Pop-Location
 
 Write-Host "`n=== EXECUTION TEST COMPLETE ===" -ForegroundColor Cyan
-Write-Host "If the application still doesn't launch properly, the issue may be:" -ForegroundColor Yellow
+Write-Host "If the application still does not launch properly, the issue may be:" -ForegroundColor Yellow
 Write-Host "1. Qt WebEngine compatibility issues with MSIX sandboxing" -ForegroundColor Gray
 Write-Host "2. Missing system-level dependencies" -ForegroundColor Gray
 Write-Host "3. MSIX capability restrictions" -ForegroundColor Gray
