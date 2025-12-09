@@ -79,7 +79,7 @@ try {
     # Required Qt libraries for kiwix-desktop
     $QtLibs = @(
         "Qt5Core.dll",
-        "Qt5Gui.dll",
+        "Qt5Gui.dll", 
         "Qt5Widgets.dll",
         "Qt5Network.dll",
         "Qt5WebEngine.dll",
@@ -91,10 +91,9 @@ try {
         "Qt5Quick.dll",
         "Qt5QuickWidgets.dll",
         "Qt5Qml.dll",
-        "Qt5QmlModels.dll"
-    )
-
-    $copiedLibs = 0
+        "Qt5QmlModels.dll",
+        "Qt5TextToSpeech.dll"
+    )    $copiedLibs = 0
     if ($QtBinPath -and (Test-Path $QtBinPath)) {
         foreach ($lib in $QtLibs) {
             $libPath = Join-Path $QtBinPath $lib
