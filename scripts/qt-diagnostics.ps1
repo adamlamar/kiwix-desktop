@@ -14,7 +14,7 @@ Write-Host "Checking for key Qt files:" -ForegroundColor White
 # Check essential Qt DLLs
 $essentialQtFiles = @(
     "Qt5Core.dll",
-    "Qt5Gui.dll", 
+    "Qt5Gui.dll",
     "Qt5Widgets.dll",
     "Qt5WebEngine.dll",
     "Qt5WebEngineCore.dll",
@@ -77,11 +77,42 @@ if (Test-Path "platforms") {
 }
 
 Write-Host ""
+Write-Host "Checking Qt WebEngine support files:" -ForegroundColor White
+
+$webEngineFiles = @(
+    "QtWebEngineProcess.exe",
+    "resources\qtwebengine_resources.pak",
+    "resources\qtwebengine_devtools_resources.pak",
+    "resources\qtwebengine_resources_100p.pak",
+    "resources\qtwebengine_resources_200p.pak"
+)
+
+foreach ($webFile in $webEngineFiles) {
+    if (Test-Path $webFile) {
+        Write-Host "  [OK] $webFile found" -ForegroundColor Green
+    } else {
+        Write-Host "  [WARN] $webFile NOT found - may cause WebEngine issues" -ForegroundColor Yellow
+    }
+}
+
+# Check for Qt WebEngine locales
+if (Test-Path "locales") {
+    $localeFiles = Get-ChildItem "locales\*.pak" -ErrorAction SilentlyContinue
+    if ($localeFiles) {
+        Write-Host "  [OK] WebEngine locales found ($($localeFiles.Count) files)" -ForegroundColor Green
+    } else {
+        Write-Host "  [WARN] No WebEngine locale files found" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  [WARN] locales directory not found" -ForegroundColor Yellow
+}
+
+Write-Host ""
 Write-Host "Checking Visual C++ Runtime files:" -ForegroundColor White
 
 $vcRedistFiles = @(
     "MSVCP140.dll",
-    "MSVCP140_1.dll", 
+    "MSVCP140_1.dll",
     "VCRUNTIME140.dll",
     "VCRUNTIME140_1.dll"
 )
@@ -107,9 +138,9 @@ try {
         $qtCoreVersion = (Get-ItemProperty "Qt5Core.dll").VersionInfo
         Write-Host "  Qt5Core.dll version: $($qtCoreVersion.FileVersion)" -ForegroundColor Gray
     }
-    
+
     if (Test-Path "kiwix-desktop.exe") {
-        $appVersion = (Get-ItemProperty "kiwix-desktop.exe").VersionInfo  
+        $appVersion = (Get-ItemProperty "kiwix-desktop.exe").VersionInfo
         Write-Host "  kiwix-desktop.exe version: $($appVersion.FileVersion)" -ForegroundColor Gray
     }
 } catch {
@@ -130,6 +161,24 @@ if ($criticalIssues -eq 0) {
     Write-Host "SUMMARY: No critical issues detected. Application should be able to start." -ForegroundColor Green
 } else {
     Write-Host "SUMMARY: $criticalIssues critical issue(s) detected. Application will likely fail to start." -ForegroundColor Red
+}
+
+Write-Host ""
+Write-Host "=== Troubleshooting Suggestions ===" -ForegroundColor Cyan
+
+if ($criticalIssues -eq 0) {
+    Write-Host "Since all files appear to be present, the crash might be due to:" -ForegroundColor Yellow
+    Write-Host "1. Qt WebEngine sandbox restrictions in MSIX environment" -ForegroundColor White
+    Write-Host "2. Missing environment variables or registry entries" -ForegroundColor White
+    Write-Host "3. MSIX container limitations affecting Qt initialization" -ForegroundColor White
+    Write-Host ""
+    Write-Host "Try running the application with Qt debugging:" -ForegroundColor Yellow
+    Write-Host '  $env:QT_DEBUG_PLUGINS=1; .\kiwix-desktop.exe' -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "Or with WebEngine debugging:" -ForegroundColor Yellow
+    Write-Host '  $env:QTWEBENGINE_CHROMIUM_FLAGS="--disable-gpu --no-sandbox"; .\kiwix-desktop.exe' -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "If the crash persists, it may indicate a fundamental Qt/MSIX compatibility issue." -ForegroundColor Yellow
 }
 
 Write-Host ""
