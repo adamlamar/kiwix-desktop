@@ -152,7 +152,9 @@ jobs:
         }
 
         Write-Host "Using Qt path: $qtPath"
-        .\deploy-windows.ps1 -BuildPath "release" -QtPath "$qtPath" -OutputPath "dist" -DepsPath "$env:GITHUB_WORKSPACE\BUILD_win-amd64\INSTALL"    - name: Verify deployment
+        .\deploy-windows.ps1 -BuildPath "release" -QtPath "$qtPath" -OutputPath "dist" -DepsPath "$env:GITHUB_WORKSPACE\BUILD_win-amd64\INSTALL"
+
+    - name: Verify deployment
       shell: pwsh
       run: |
         Write-Host "Checking deployed files..."
