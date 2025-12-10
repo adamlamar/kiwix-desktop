@@ -125,24 +125,34 @@ jobs:
     - name: Deploy application with Qt6 libraries
       shell: pwsh
       run: |
-        # Use the Qt path we detected earlier
-        $qtPath = $env:QT_INSTALL_PATH
-        if (-not $qtPath) {
-          $qtPath = $env:Qt6_DIR
+        # Use Qt path from environment variables in order of preference
+        $qtPath = $null
+
+        $qtCandidates = @(
+          $env:QT_INSTALL_PATH,
+          $env:QT_ROOT_DIR,
+          $env:Qt6_DIR
+        )
+
+        foreach ($candidate in $qtCandidates) {
+          if ($candidate -and (Test-Path "$candidate\bin\windeployqt.exe")) {
+            $qtPath = $candidate
+            Write-Host "✓ Found Qt at: $qtPath" -ForegroundColor Green
+            break
+          }
         }
 
-        Write-Host "Using Qt path: $qtPath"
-
-        if (Test-Path "$qtPath\bin\windeployqt.exe") {
-          Write-Host "✓ windeployqt found at: $qtPath\bin\windeployqt.exe" -ForegroundColor Green
-        } else {
-          Write-Error "✗ windeployqt not found in Qt directory: $qtPath"
+        if (-not $qtPath) {
+          Write-Host "Qt environment variables:" -ForegroundColor Yellow
+          Write-Host "  QT_INSTALL_PATH: $env:QT_INSTALL_PATH"
+          Write-Host "  QT_ROOT_DIR: $env:QT_ROOT_DIR"
+          Write-Host "  Qt6_DIR: $env:Qt6_DIR"
+          Write-Error "✗ Could not find Qt installation with windeployqt"
           exit 1
         }
 
-        .\deploy-windows.ps1 -BuildPath "release" -QtPath "$qtPath" -OutputPath "dist" -DepsPath "$env:GITHUB_WORKSPACE\BUILD_win-amd64\INSTALL"
-
-    - name: Verify deployment
+        Write-Host "Using Qt path: $qtPath"
+        .\deploy-windows.ps1 -BuildPath "release" -QtPath "$qtPath" -OutputPath "dist" -DepsPath "$env:GITHUB_WORKSPACE\BUILD_win-amd64\INSTALL"    - name: Verify deployment
       shell: pwsh
       run: |
         Write-Host "Checking deployed files..."
