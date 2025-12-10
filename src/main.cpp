@@ -34,6 +34,9 @@ bool wasAppStartedFromARemoteDrive()
 
 int main(int argc, char *argv[])
 {
+        // Print startup message
+    std::cout << "Starting Kiwix Desktop..." << std::endl;
+
 // Small hack to make QtWebEngine works with AppImage.
 // See https://github.com/probonopd/linuxdeployqt/issues/554
     if (qEnvironmentVariableIsSet("APPIMAGE")) {
