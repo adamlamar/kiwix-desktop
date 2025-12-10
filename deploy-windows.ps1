@@ -219,7 +219,9 @@ $additionalFiles = @(
     "README.md",
     "COPYING",
     "debug-kiwix-desktop.ps1",
-    "debug-kiwix-desktop.bat"
+    "debug-kiwix-desktop.bat",
+    "dll-checker.ps1",
+    "runtime-test.cpp"
 )
 
 foreach ($file in $additionalFiles) {
@@ -229,7 +231,11 @@ foreach ($file in $additionalFiles) {
     }
 }
 
-Write-Host "Deployment completed successfully!" -ForegroundColor Green
+# Copy runtime test executable if it exists
+if (Test-Path "$BuildPath\runtime-test.exe") {
+    Copy-Item "$BuildPath\runtime-test.exe" $OutputPath -Force
+    Write-Host "Copied: runtime-test.exe"
+}Write-Host "Deployment completed successfully!" -ForegroundColor Green
 Write-Host "Output directory: $OutputPath" -ForegroundColor Cyan
 
 # List deployed files

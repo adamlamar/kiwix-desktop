@@ -122,6 +122,17 @@ jobs:
           Write-Host "Release directory not found"
         }
 
+    - name: Build runtime test
+      shell: cmd
+      run: |
+        echo Building runtime test...
+        cl /EHsc runtime-test.cpp /Fe:release/runtime-test.exe
+        if %ERRORLEVEL% NEQ 0 (
+          echo Runtime test build failed
+        ) else (
+          echo Runtime test built successfully
+        )
+
     - name: Deploy application with Qt6 libraries
       shell: pwsh
       run: |

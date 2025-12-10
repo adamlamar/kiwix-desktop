@@ -89,12 +89,54 @@ Write-Host "  QT_QPA_PLATFORM_PLUGIN_PATH = $env:QT_QPA_PLATFORM_PLUGIN_PATH"
 Write-Host "  QT_PLUGIN_PATH = $env:QT_PLUGIN_PATH"
 Write-Host ""
 
-Write-Host "Launching application..." -ForegroundColor Yellow
+Write-Host "Testing if executable reaches main() function..." -ForegroundColor Yellow
+Write-Host "Expected output: 'Starting Kiwix Desktop...'"
+Write-Host ""
+
 try {
-    & $exePath --help 2>&1 | Tee-Object -FilePath (Join-Path $scriptDir "debug_output.log")
+    # Capture both stdout and stderr
+    $process = Start-Process -FilePath $exePath -ArgumentList "--help" -Wait -PassThru -RedirectStandardOutput "stdout.log" -RedirectStandardError "stderr.log" -NoNewWindow
+
+    Write-Host "Process completed with exit code: $($process.ExitCode)"
+
+    # Check if we got the expected startup message
+    if (Test-Path "stdout.log") {
+        $stdout = Get-Content "stdout.log" -Raw
+        if ($stdout -and $stdout.Contains("Starting Kiwix Desktop")) {
+            Write-Host "✓ Application reaches main() function" -ForegroundColor Green
+            Write-Host "Standard output:" -ForegroundColor Green
+            Write-Host $stdout
+        } else {
+            Write-Host "✗ Application does NOT reach main() function" -ForegroundColor Red
+            Write-Host "This indicates a DLL loading or runtime initialization failure"
+            if ($stdout) {
+                Write-Host "Unexpected output: $stdout" -ForegroundColor Yellow
+            }
+        }
+    }
+
+    if (Test-Path "stderr.log") {
+        $stderr = Get-Content "stderr.log" -Raw
+        if ($stderr) {
+            Write-Host "Standard error:" -ForegroundColor Red
+            Write-Host $stderr
+        }
+    }
+
+    # If no output at all, it's definitely a DLL issue
+    if (-not (Test-Path "stdout.log") -and -not (Test-Path "stderr.log")) {
+        Write-Host "✗ No output captured - severe initialization failure" -ForegroundColor Red
+    }
 } catch {
     Write-Host "Exception during launch: $($_.Exception.Message)" -ForegroundColor Red
 }
+
+Write-Host "`n=== Additional Debugging Suggestions ===" -ForegroundColor Cyan
+Write-Host "If the application doesn't reach main():"
+Write-Host "1. Run 'dll-checker.ps1' for detailed DLL analysis"
+Write-Host "2. Use Process Monitor to see file access attempts"
+Write-Host "3. Check Windows Event Viewer for crash logs"
+Write-Host "4. Verify all Qt6 platform plugins are present"
 
 Write-Host "`nCheck debug_output.log for any additional messages."
 Write-Host "Press any key to continue..."
