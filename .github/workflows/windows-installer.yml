@@ -126,11 +126,22 @@ jobs:
       shell: cmd
       run: |
         echo Building runtime test...
+        echo Current directory: %cd%
+        echo Looking for runtime-test.cpp...
+        if exist "runtime-test.cpp" (
+          echo Found runtime-test.cpp
+        ) else (
+          echo runtime-test.cpp not found in current directory
+          dir *.cpp
+        )
+
+        if not exist "release" mkdir release
         cl /EHsc runtime-test.cpp /Fe:release/runtime-test.exe
         if %ERRORLEVEL% NEQ 0 (
           echo Runtime test build failed
         ) else (
           echo Runtime test built successfully
+          dir release\runtime-test.exe
         )
 
     - name: Deploy application with Qt6 libraries
