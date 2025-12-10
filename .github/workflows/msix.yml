@@ -343,53 +343,49 @@ jobs:
         }
 
         # Create README for the artifact
-        $readmeContent = @"
-# Kiwix Desktop MSIX Package Contents
+        $readmeLines = @(
+          "# Kiwix Desktop MSIX Package Contents",
+          "",
+          "This artifact contains the complete Kiwix Desktop MSIX package and all related files.",
+          "",
+          "## Files Included:",
+          "",
+          "### MSIX Package",
+          "- kiwix-desktop-*.msix - The signed MSIX package ready for installation",
+          "",
+          "### MSIX Contents (msix-contents/)",
+          "- Package.appxmanifest - MSIX application manifest",
+          "- kiwix-desktop.exe - Main application executable",
+          "- Assets/ - Application icons and resources",
+          "- build-msix.ps1 - PowerShell build script",
+          "",
+          "### Troubleshooting Scripts (msix-contents/)",
+          "- qt-diagnostics.ps1 - Qt environment diagnostics",
+          "- debug-msix-app.ps1 - Basic MSIX debugging",
+          "- debug-msix-environment.ps1 - Comprehensive MSIX environment analysis",
+          "- fix-msix-execution.ps1 - MSIX execution fixes",
+          "- webengine-msix-compat.ps1 - Qt WebEngine MSIX compatibility",
+          "- launch-kiwix-workaround.ps1 - Alternative launch methods",
+          "- installation-success.ps1 - Installation success verification",
+          "",
+          "## Installation Instructions:",
+          "",
+          "1. Install the MSIX package:",
+          "   Add-AppxPackage -Path `"kiwix-desktop-*.msix`"",
+          "",
+          "2. Launch from Windows Start Menu by searching for `"Kiwix`"",
+          "",
+          "3. If you encounter issues, run the troubleshooting scripts from the installed package directory:",
+          "   cd `"C:\Program Files\WindowsApps\KiwixFoundation.Kiwix_*`"",
+          "   powershell -ExecutionPolicy Bypass -File `"installation-success.ps1`"",
+          "",
+          "## For Developers:",
+          "",
+          "The msix-contents/ directory contains all the files that are packaged inside the MSIX,",
+          "including troubleshooting tools that are available when the package is installed."
+        )
 
-This artifact contains the complete Kiwix Desktop MSIX package and all related files.
-
-## Files Included:
-
-### MSIX Package
-- kiwix-desktop-*.msix - The signed MSIX package ready for installation
-
-### MSIX Contents (msix-contents/)
-- Package.appxmanifest - MSIX application manifest
-- kiwix-desktop.exe - Main application executable
-- Assets/ - Application icons and resources
-- build-msix.ps1 - PowerShell build script
-
-### Troubleshooting Scripts (msix-contents/)
-- qt-diagnostics.ps1 - Qt environment diagnostics
-- debug-msix-app.ps1 - Basic MSIX debugging
-- debug-msix-environment.ps1 - Comprehensive MSIX environment analysis
-- fix-msix-execution.ps1 - MSIX execution fixes
-- webengine-msix-compat.ps1 - Qt WebEngine MSIX compatibility
-- launch-kiwix-workaround.ps1 - Alternative launch methods
-- installation-success.ps1 - Installation success verification
-
-## Installation Instructions:
-
-1. Install the MSIX package:
-   ``````
-   Add-AppxPackage -Path "kiwix-desktop-*.msix"
-   ``````
-
-2. Launch from Windows Start Menu by searching for "Kiwix"
-
-3. If you encounter issues, run the troubleshooting scripts from the installed package directory:
-   ``````
-   cd "C:\Program Files\WindowsApps\KiwixFoundation.Kiwix_*"
-   powershell -ExecutionPolicy Bypass -File "installation-success.ps1"
-   ``````
-
-## For Developers:
-
-The msix-contents/ directory contains all the files that are packaged inside the MSIX,
-including troubleshooting tools that are available when the package is installed.
-"@
-
-        $readmeContent | Set-Content (Join-Path $artifactDir "README.md") -Encoding UTF8
+        $readmeLines -join "`n" | Set-Content (Join-Path $artifactDir "README.md") -Encoding UTF8
         Write-Host "Created README.md" -ForegroundColor Green
 
         Write-Host "`nArtifact directory structure:" -ForegroundColor Cyan
