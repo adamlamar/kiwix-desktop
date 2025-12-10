@@ -51,6 +51,46 @@ jobs:
         setup-python: false
         cache: true
 
+    - name: Verify Qt installation
+      shell: pwsh
+      run: |
+        Write-Host "=== Qt Installation Diagnostics ===" -ForegroundColor Cyan
+        Write-Host "Environment Variables:"
+        Write-Host "  Qt6_DIR: $env:Qt6_DIR"
+        Write-Host "  QT_ROOT_DIR: $env:QT_ROOT_DIR"
+        Write-Host "  RUNNER_WORKSPACE: $env:RUNNER_WORKSPACE"
+
+        Write-Host "`nSearching for Qt installations..."
+
+        # Check RUNNER_WORKSPACE for Qt
+        $runnerQtPath = "$env:RUNNER_WORKSPACE\Qt"
+        if (Test-Path $runnerQtPath) {
+          Write-Host "✓ Found Qt directory at: $runnerQtPath" -ForegroundColor Green
+          Get-ChildItem -Path $runnerQtPath -Directory | ForEach-Object {
+            Write-Host "  Qt version directory: $($_.Name)"
+            $msvcPath = Join-Path $_.FullName "msvc2022_64"
+            if (Test-Path $msvcPath) {
+              Write-Host "    ✓ MSVC2022_64 directory found" -ForegroundColor Green
+              if (Test-Path "$msvcPath\bin\qmake.exe") {
+                Write-Host "    ✓ qmake.exe found" -ForegroundColor Green
+              }
+              if (Test-Path "$msvcPath\bin\windeployqt.exe") {
+                Write-Host "    ✓ windeployqt.exe found" -ForegroundColor Green
+                Write-Host "QT_INSTALL_PATH=$msvcPath" >> $env:GITHUB_ENV
+                Write-Host "Setting QT_INSTALL_PATH to: $msvcPath" -ForegroundColor Yellow
+              }
+            }
+          }
+        } else {
+          Write-Host "✗ No Qt directory found at: $runnerQtPath" -ForegroundColor Red
+        }
+
+        # List all Qt-related directories
+        Write-Host "`nAll Qt-related files in workspace:"
+        Get-ChildItem -Path $env:RUNNER_WORKSPACE -Filter "*qt*" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 10 | ForEach-Object {
+          Write-Host "  $($_.FullName)"
+        }
+
     - name: Setup MSVC compiler
       uses: bus1/cabuild/action/msdevshell@v1
       with:
@@ -85,14 +125,22 @@ jobs:
     - name: Deploy application with Qt6 libraries
       shell: pwsh
       run: |
-        # Verify Qt path
-        Write-Host "Qt6_DIR: $env:Qt6_DIR"
-        if (Test-Path "$env:Qt6_DIR\bin\windeployqt.exe") {
-          Write-Host "windeployqt found at: $env:Qt6_DIR\bin\windeployqt.exe"
-        } else {
-          Write-Error "windeployqt not found in Qt directory"
+        # Use the Qt path we detected earlier
+        $qtPath = $env:QT_INSTALL_PATH
+        if (-not $qtPath) {
+          $qtPath = $env:Qt6_DIR
         }
-        .\deploy-windows.ps1 -BuildPath "release" -QtPath "$env:Qt6_DIR" -OutputPath "dist" -DepsPath "$env:GITHUB_WORKSPACE\BUILD_win-amd64\INSTALL"
+
+        Write-Host "Using Qt path: $qtPath"
+
+        if (Test-Path "$qtPath\bin\windeployqt.exe") {
+          Write-Host "✓ windeployqt found at: $qtPath\bin\windeployqt.exe" -ForegroundColor Green
+        } else {
+          Write-Error "✗ windeployqt not found in Qt directory: $qtPath"
+          exit 1
+        }
+
+        .\deploy-windows.ps1 -BuildPath "release" -QtPath "$qtPath" -OutputPath "dist" -DepsPath "$env:GITHUB_WORKSPACE\BUILD_win-amd64\INSTALL"
 
     - name: Verify deployment
       shell: pwsh

@@ -70,12 +70,13 @@ if (Test-Path $exeSource) {
 
 # Find Qt installation path if not provided
 if (-not $QtPath -or -not (Test-Path $QtPath)) {
-    Write-Host "Searching for Qt installation..."
+    Write-Host "Searching for Qt installation..." -ForegroundColor Yellow
 
-    # Common Qt installation locations
+    # Common Qt installation locations (updated with more paths)
     $qtSearchPaths = @(
         "${env:Qt6_DIR}",
         "${env:QT_ROOT_DIR}",
+        "${env:QT_INSTALL_PATH}",
         "${env:RUNNER_WORKSPACE}\Qt\6.8.1\msvc2022_64",
         "${env:RUNNER_WORKSPACE}\Qt\6.8.0\msvc2022_64",
         "${env:RUNNER_WORKSPACE}\Qt\6.7.3\msvc2022_64",
@@ -84,20 +85,47 @@ if (-not $QtPath -or -not (Test-Path $QtPath)) {
         "C:\Qt\6.7.3\msvc2022_64"
     )
 
+    Write-Host "Checking Qt search paths:" -ForegroundColor Cyan
     foreach ($path in $qtSearchPaths) {
-        if ($path -and (Test-Path (Join-Path $path "bin\windeployqt.exe"))) {
+        Write-Host "  Checking: $path"
+        if ($path -and (Test-Path "$path\bin\windeployqt.exe")) {
             $QtPath = $path
-            Write-Host "Found Qt at: $QtPath" -ForegroundColor Green
+            Write-Host "✓ Found Qt at: $QtPath" -ForegroundColor Green
             break
         }
     }
 
+    # If still not found, try to find Qt installations in common locations
     if (-not $QtPath) {
-        Write-Error "Qt installation not found. Please specify QtPath parameter."
-    }
-}
+        Write-Host "Searching for Qt in common installation directories..." -ForegroundColor Yellow
 
-# Run windeployqt
+        $searchRoots = @(
+            "${env:RUNNER_WORKSPACE}\Qt",
+            "C:\Qt"
+        )
+
+        foreach ($root in $searchRoots) {
+            if (Test-Path $root) {
+                Write-Host "Searching in: $root"
+                $qtDirs = Get-ChildItem -Path $root -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match "6\.\d+\.\d+" }
+                foreach ($qtDir in $qtDirs) {
+                    $msvcPath = Join-Path $qtDir.FullName "msvc2022_64"
+                    if (Test-Path "$msvcPath\bin\windeployqt.exe") {
+                        $QtPath = $msvcPath
+                        Write-Host "✓ Found Qt at: $QtPath" -ForegroundColor Green
+                        break
+                    }
+                }
+                if ($QtPath) { break }
+            }
+        }
+    }
+
+    if (-not $QtPath) {
+        Write-Error "Qt installation not found. Please specify QtPath parameter or ensure Qt is installed."
+        exit 1
+    }
+}# Run windeployqt
 $windeployqt = Join-Path $QtPath "bin\windeployqt.exe"
 if (Test-Path $windeployqt) {
     $targetExe = Join-Path $OutputPath "kiwix-desktop.exe"
