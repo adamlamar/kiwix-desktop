@@ -24,15 +24,15 @@ try {
         Start-Sleep -Seconds 2
         $kiwixProcess = Get-Process -Name "kiwix-desktop" -ErrorAction SilentlyContinue
         if ($kiwixProcess) {
-            Write-Host "✓ Application launched successfully via Start Menu!" -ForegroundColor Green
+            Write-Host "Application launched successfully via Start Menu!" -ForegroundColor Green
             Write-Host "Process ID: $($kiwixProcess.Id)" -ForegroundColor Gray
             return
         } else {
-            Write-Host "✗ Start Menu launch failed" -ForegroundColor Red
+            Write-Host "Start Menu launch failed" -ForegroundColor Red
         }
     }
 } catch {
-    Write-Host "✗ Start Menu method failed: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Start Menu method failed: $($_.Exception.Message)" -ForegroundColor Red
 }
 
 # Method 2: PowerShell App Execution
@@ -50,62 +50,44 @@ try {
             Start-Sleep -Seconds 3
             $kiwixProcess = Get-Process -Name "kiwix-desktop" -ErrorAction SilentlyContinue
             if ($kiwixProcess) {
-                Write-Host "✓ Application launched successfully via PowerShell!" -ForegroundColor Green
+                Write-Host "Application launched successfully via PowerShell!" -ForegroundColor Green
                 Write-Host "Process ID: $($kiwixProcess.Id)" -ForegroundColor Gray
                 return
             }
         }
     }
-    Write-Host "✗ PowerShell app execution failed" -ForegroundColor Red
+    Write-Host "PowerShell app execution failed" -ForegroundColor Red
 } catch {
-    Write-Host "✗ PowerShell method failed: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "PowerShell method failed: $($_.Exception.Message)" -ForegroundColor Red
 }
 
-# Method 3: Registry-based launch
-Write-Host "`nMethod 3: Registry-based launch..." -ForegroundColor Yellow
-try {
-    $regPath = "HKCU:\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppModel\Repository\Packages"
-    $kiwixKeys = Get-ChildItem $regPath -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*Kiwix*" }
-
-    if ($kiwixKeys) {
-        Write-Host "Found registry entries for Kiwix packages" -ForegroundColor Green
-        # This method requires more complex implementation
-        Write-Host "Registry method available but requires elevated permissions" -ForegroundColor Yellow
-    } else {
-        Write-Host "✗ No registry entries found" -ForegroundColor Red
-    }
-} catch {
-    Write-Host "✗ Registry method failed: $($_.Exception.Message)" -ForegroundColor Red
-}
-
-# Method 4: Check if app is already running
-Write-Host "`nMethod 4: Checking for existing process..." -ForegroundColor Yellow
+# Method 3: Check if app is already running
+Write-Host "`nMethod 3: Checking for existing process..." -ForegroundColor Yellow
 $existingProcess = Get-Process -Name "kiwix-desktop" -ErrorAction SilentlyContinue
 if ($existingProcess) {
-    Write-Host "✓ Kiwix Desktop is already running!" -ForegroundColor Green
+    Write-Host "Kiwix Desktop is already running!" -ForegroundColor Green
     Write-Host "Process ID: $($existingProcess.Id)" -ForegroundColor Gray
-    Write-Host "Working Directory: $($existingProcess.MainModule.FileName | Split-Path)" -ForegroundColor Gray
 } else {
     Write-Host "No existing Kiwix Desktop process found" -ForegroundColor Gray
 }
 
-# Alternative: Create batch launcher that might work
-Write-Host "`nCreating alternative launcher..." -ForegroundColor Yellow
-$batchLauncher = @"
+# Method 4: Create batch launcher
+Write-Host "`nMethod 4: Creating alternative launcher..." -ForegroundColor Yellow
+$batchContent = @'
 @echo off
 echo Starting Kiwix Desktop via Windows App Launch...
 start "" shell:appsFolder\KiwixFoundation.Kiwix_b0efqnfydk0bj!KiwixDesktop
-"@
+'@
 
 try {
     # Try to write to a writable location
     $tempPath = $env:TEMP
     $launcherPath = Join-Path $tempPath "launch-kiwix.bat"
-    $batchLauncher | Set-Content $launcherPath -ErrorAction Stop
-    Write-Host "✓ Created launcher at: $launcherPath" -ForegroundColor Green
+    $batchContent | Set-Content $launcherPath -ErrorAction Stop
+    Write-Host "Created launcher at: $launcherPath" -ForegroundColor Green
     Write-Host "You can run this batch file to launch Kiwix Desktop" -ForegroundColor Yellow
 } catch {
-    Write-Host "✗ Could not create launcher: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Could not create launcher: $($_.Exception.Message)" -ForegroundColor Red
 }
 
 # Show diagnostic information
