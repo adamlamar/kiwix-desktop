@@ -278,11 +278,131 @@ jobs:
         SIGNING_CERTIFICATE: ${{ secrets.SIGNING_CERTIFICATE }}
         SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
 
+    - name: Prepare artifact directory
+      shell: powershell
+      run: |
+        Write-Host "Preparing artifact directory structure..." -ForegroundColor Yellow
+
+        # Create artifact directory structure
+        $artifactDir = "msix-package"
+        $msixContentDir = Join-Path $artifactDir "msix-contents"
+
+        New-Item -ItemType Directory -Path $artifactDir -Force | Out-Null
+        New-Item -ItemType Directory -Path $msixContentDir -Force | Out-Null
+
+        # Copy MSIX package file
+        $msixFile = Get-ChildItem "*.msix" | Select-Object -First 1
+        if ($msixFile) {
+          Copy-Item $msixFile.FullName (Join-Path $artifactDir $msixFile.Name) -Force
+          Write-Host "Copied MSIX package: $($msixFile.Name)" -ForegroundColor Green
+        }
+
+        # Copy Package.appxmanifest
+        if (Test-Path "Package.appxmanifest") {
+          Copy-Item "Package.appxmanifest" $msixContentDir -Force
+          Write-Host "Copied Package.appxmanifest" -ForegroundColor Green
+        }
+
+        # Copy all troubleshooting scripts
+        $scriptFiles = @(
+          "scripts\qt-diagnostics.ps1",
+          "scripts\debug-msix-app.ps1",
+          "scripts\debug-msix-environment.ps1",
+          "scripts\fix-msix-execution.ps1",
+          "scripts\webengine-msix-compat.ps1",
+          "scripts\launch-kiwix-workaround.ps1",
+          "scripts\installation-success.ps1"
+        )
+
+        foreach ($script in $scriptFiles) {
+          if (Test-Path $script) {
+            $fileName = Split-Path $script -Leaf
+            Copy-Item $script (Join-Path $msixContentDir $fileName) -Force
+            Write-Host "Copied troubleshooting script: $fileName" -ForegroundColor Green
+          }
+        }
+
+        # Copy build script
+        if (Test-Path "scripts\build-msix.ps1") {
+          Copy-Item "scripts\build-msix.ps1" $msixContentDir -Force
+          Write-Host "Copied build-msix.ps1" -ForegroundColor Green
+        }
+
+        # Copy executable if available
+        $exePath = "release\kiwix-desktop.exe"
+        if (Test-Path $exePath) {
+          Copy-Item $exePath $msixContentDir -Force
+          $exeInfo = Get-Item (Join-Path $msixContentDir "kiwix-desktop.exe")
+          Write-Host "Copied executable: $([math]::Round($exeInfo.Length / 1MB, 2)) MB" -ForegroundColor Green
+        }
+
+        # Copy Assets directory if it exists
+        if (Test-Path "Assets") {
+          Copy-Item "Assets" $msixContentDir -Recurse -Force
+          Write-Host "Copied Assets directory" -ForegroundColor Green
+        }
+
+        # Create README for the artifact
+        $readmeContent = @"
+# Kiwix Desktop MSIX Package Contents
+
+This artifact contains the complete Kiwix Desktop MSIX package and all related files.
+
+## Files Included:
+
+### MSIX Package
+- kiwix-desktop-*.msix - The signed MSIX package ready for installation
+
+### MSIX Contents (msix-contents/)
+- Package.appxmanifest - MSIX application manifest
+- kiwix-desktop.exe - Main application executable
+- Assets/ - Application icons and resources
+- build-msix.ps1 - PowerShell build script
+
+### Troubleshooting Scripts (msix-contents/)
+- qt-diagnostics.ps1 - Qt environment diagnostics
+- debug-msix-app.ps1 - Basic MSIX debugging
+- debug-msix-environment.ps1 - Comprehensive MSIX environment analysis
+- fix-msix-execution.ps1 - MSIX execution fixes
+- webengine-msix-compat.ps1 - Qt WebEngine MSIX compatibility
+- launch-kiwix-workaround.ps1 - Alternative launch methods
+- installation-success.ps1 - Installation success verification
+
+## Installation Instructions:
+
+1. Install the MSIX package:
+   ``````
+   Add-AppxPackage -Path "kiwix-desktop-*.msix"
+   ``````
+
+2. Launch from Windows Start Menu by searching for "Kiwix"
+
+3. If you encounter issues, run the troubleshooting scripts from the installed package directory:
+   ``````
+   cd "C:\Program Files\WindowsApps\KiwixFoundation.Kiwix_*"
+   powershell -ExecutionPolicy Bypass -File "installation-success.ps1"
+   ``````
+
+## For Developers:
+
+The msix-contents/ directory contains all the files that are packaged inside the MSIX,
+including troubleshooting tools that are available when the package is installed.
+"@
+
+        $readmeContent | Set-Content (Join-Path $artifactDir "README.md") -Encoding UTF8
+        Write-Host "Created README.md" -ForegroundColor Green
+
+        Write-Host "`nArtifact directory structure:" -ForegroundColor Cyan
+        Get-ChildItem $artifactDir -Recurse | ForEach-Object {
+          $indent = "  " * ($_.FullName.Split('\').Count - $artifactDir.Split('\').Count - 1)
+          Write-Host "$indent$($_.Name)" -ForegroundColor Gray
+        }
+
     - name: Upload MSIX package
       uses: actions/upload-artifact@v4
       with:
         name: kiwix-desktop-msix
-        path: "*.msix"
+        path: msix-package/
         retention-days: 30
 
     - name: Upload to release
