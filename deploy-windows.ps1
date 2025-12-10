@@ -138,6 +138,7 @@ if (Test-Path $windeployqt) {
         "--no-translations",
         "--no-system-d3d-compiler",
         "--no-opengl-sw",
+        "--force",
         "--verbose", "2",
         $targetExe
     )
@@ -225,6 +226,25 @@ foreach ($file in $additionalFiles) {
         Write-Host "Copied: $file"
     }
 }
+
+# Create debug batch file for troubleshooting
+$debugBat = @"
+@echo off
+echo Starting Kiwix Desktop with console output...
+echo If the application fails to start, you will see error messages below.
+echo.
+
+"%~dp0kiwix-desktop.exe" %*
+
+echo.
+echo Application has exited.
+echo If you saw any error messages above, please report them.
+pause
+"@
+
+$debugBatPath = Join-Path $OutputPath "debug-kiwix-desktop.bat"
+Set-Content -Path $debugBatPath -Value $debugBat -Encoding ASCII
+Write-Host "Created debug batch file: debug-kiwix-desktop.bat" -ForegroundColor Green
 
 Write-Host "Deployment completed successfully!" -ForegroundColor Green
 Write-Host "Output directory: $OutputPath" -ForegroundColor Cyan

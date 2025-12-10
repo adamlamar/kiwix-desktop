@@ -157,24 +157,132 @@ jobs:
     - name: Verify deployment
       shell: pwsh
       run: |
-        Write-Host "Checking deployed files..."
+        Write-Host "=== Deployment Verification ===" -ForegroundColor Cyan
+
         if (Test-Path "dist\kiwix-desktop.exe") {
           Write-Host "✓ Main executable found" -ForegroundColor Green
+
+          # Check executable dependencies with dumpbin if available
+          $dumpbin = Get-Command "dumpbin.exe" -ErrorAction SilentlyContinue
+          if ($dumpbin) {
+            Write-Host "`nExecutable dependencies:" -ForegroundColor Yellow
+            & dumpbin /dependents "dist\kiwix-desktop.exe" | Select-String "\.dll"
+          }
         } else {
           Write-Error "✗ Main executable missing"
         }
 
-        $qtLibs = @("Qt6Core.dll", "Qt6Gui.dll", "Qt6Widgets.dll", "Qt6WebEngineWidgets.dll")
-        foreach ($lib in $qtLibs) {
+        # Enhanced Qt library verification
+        Write-Host "`nQt6 Libraries Check:" -ForegroundColor Yellow
+        $requiredQtLibs = @(
+          "Qt6Core.dll", "Qt6Gui.dll", "Qt6Widgets.dll",
+          "Qt6WebEngineWidgets.dll", "Qt6WebEngineCore.dll", "Qt6WebChannel.dll",
+          "Qt6Network.dll", "Qt6PrintSupport.dll", "Qt6Positioning.dll"
+        )
+
+        foreach ($lib in $requiredQtLibs) {
           if (Test-Path "dist\$lib") {
             Write-Host "✓ $lib found" -ForegroundColor Green
           } else {
-            Write-Warning "⚠ $lib missing"
+            Write-Host "✗ $lib missing" -ForegroundColor Red
           }
         }
 
-        Write-Host "`nDeployed file count:"
-        (Get-ChildItem -Path "dist" -Recurse -File).Count
+        # Check for VC++ Redistributables
+        Write-Host "`nVC++ Redistributable Check:" -ForegroundColor Yellow
+        $vcLibs = @("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
+        foreach ($lib in $vcLibs) {
+          if (Test-Path "dist\$lib") {
+            Write-Host "✓ $lib found" -ForegroundColor Green
+          } else {
+            Write-Host "✗ $lib missing" -ForegroundColor Red
+          }
+        }
+
+        # Check platforms directory
+        Write-Host "`nQt Platform Plugins:" -ForegroundColor Yellow
+        if (Test-Path "dist\platforms") {
+          $platforms = Get-ChildItem "dist\platforms" -Filter "*.dll"
+          foreach ($platform in $platforms) {
+            Write-Host "✓ $($platform.Name)" -ForegroundColor Green
+          }
+          if (-not $platforms) {
+            Write-Host "✗ No platform plugins found" -ForegroundColor Red
+          }
+        } else {
+          Write-Host "✗ platforms directory missing" -ForegroundColor Red
+        }
+
+        # Check other critical directories
+        $criticalDirs = @("imageformats", "styles", "tls")
+        foreach ($dir in $criticalDirs) {
+          if (Test-Path "dist\$dir") {
+            $files = (Get-ChildItem "dist\$dir" -File).Count
+            Write-Host "✓ $dir directory ($files files)" -ForegroundColor Green
+          } else {
+            Write-Host "⚠ $dir directory missing" -ForegroundColor Yellow
+          }
+        }
+
+        # List all files for debugging
+        Write-Host "`nComplete file listing:" -ForegroundColor Cyan
+        Get-ChildItem -Path "dist" -Recurse | ForEach-Object {
+          $relativePath = $_.FullName.Replace((Resolve-Path "dist").Path, "")
+          if ($_.PSIsContainer) {
+            Write-Host "  📁 $relativePath" -ForegroundColor Blue
+          } else {
+            $sizeKB = [math]::Round($_.Length / 1KB, 1)
+            Write-Host "  📄 $relativePath ($sizeKB KB)" -ForegroundColor Gray
+          }
+        }
+
+        Write-Host "`nTotal deployed files: $((Get-ChildItem -Path "dist" -Recurse -File).Count)"
+
+    - name: Test executable launch
+      shell: pwsh
+      continue-on-error: true
+      run: |
+        Write-Host "=== Testing Executable Launch ===" -ForegroundColor Cyan
+
+        # Try to get version info
+        try {
+          Write-Host "Checking executable properties..."
+          $exe = Get-Item "dist\kiwix-desktop.exe"
+          Write-Host "File size: $($exe.Length) bytes"
+          Write-Host "Last modified: $($exe.LastWriteTime)"
+
+          # Try to get version info if available
+          $version = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($exe.FullName)
+          Write-Host "File version: $($version.FileVersion)"
+          Write-Host "Product version: $($version.ProductVersion)"
+        }
+        catch {
+          Write-Warning "Could not get file version info: $($_.Exception.Message)"
+        }
+
+        # Try to launch with --version flag (common Qt pattern)
+        Write-Host "`nTrying to launch with --version..."
+        try {
+          $process = Start-Process -FilePath "dist\kiwix-desktop.exe" -ArgumentList "--version" -Wait -PassThru -RedirectStandardOutput "version_output.txt" -RedirectStandardError "version_error.txt" -NoNewWindow
+          Write-Host "Process exit code: $($process.ExitCode)"
+
+          if (Test-Path "version_output.txt") {
+            $output = Get-Content "version_output.txt" -Raw
+            if ($output) {
+              Write-Host "Standard output: $output"
+            }
+          }
+
+          if (Test-Path "version_error.txt") {
+            $error = Get-Content "version_error.txt" -Raw
+            if ($error) {
+              Write-Host "Standard error: $error" -ForegroundColor Yellow
+            }
+          }
+        }
+        catch {
+          Write-Warning "Could not launch executable: $($_.Exception.Message)"
+        }
 
     - name: Create installer with Inno Setup
       shell: cmd
